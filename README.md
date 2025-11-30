@@ -1,6 +1,6 @@
 # **Crypto Volume Analysis Toolkit**
 
-Lightweight and simple toolkit that helps you track high-volume crypto tokens in the last 24 hours and run cross-market analysis using spot + futures data and generate reports in a pdf file. This toolkit works on all devices.
+Lightweight and simple toolkit that helps you track high-volume crypto tokens in the last 24 hours and run cross-market analysis using spot + futures data and generate reports in a pdf file.
 
 # **Demo**
 
