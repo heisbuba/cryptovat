@@ -37,7 +37,7 @@ Set these in your environment:
 
 To use the tool efficiently, you need specific futures data from CoinAlyze:
 
-- Go to CoinAlyze.net and sign up.
+- Go to https://CoinAlyze.net and sign up.
 
 - Navigate to **Custom Metrics** and tap on **Create Custom Metrics**.
 
@@ -57,9 +57,6 @@ Because before you run the toolkit, you need fresh futures data from CoinAlyze. 
 
 After you run the toolkit, it will take care of cleaning your download folder and leaving only the most valuable reports there. 
 
-# Strategy Behind the Toolkit
-
-
 # Disclaimer
 
 This toolkit is for research and educational purposes only. It does not, in any way, provide financial advice, trading signals, or investment recommendations.
@@ -67,5 +64,7 @@ This toolkit is for research and educational purposes only. It does not, in any 
 # Contribute
 
 MIT licensed — use, modify, or build freely.  
+
 Contribute via issues, PRs, or feature suggestions.  
+
 All contributions stay MIT.
