@@ -11,8 +11,10 @@ The generated report is a valuable asset to cryto analysts and trades alike.
 # **Features**
 
 - Easy to use
+- Modern Web-UI (in v3.0)
 - Fast, lightweight, and reliable
-- Execute the task in around 45 secs
+- Execute the task in less than minute
+- Auto-save and retrieve api keys and VTMR details
 - Works on any device
 - No complex setup
 - Automatic Spot Volume Tracking
@@ -29,11 +31,11 @@ The generated report is a valuable asset to cryto analysts and trades alike.
 Before running the toolkit, you need to install these four libraries in your python or Pydroid3 environment:
 
 
-`pip install requests pandas beautifulsoup4 pypdf`
+`pip install requests pandas beautifulsoup4 pypdf lxml flask`
 
 ## API keys Setup
 
-Set these in your environment:
+Set these in your environment for v20 and in the Setup Wizard for v3.0:
 
 - HTML2PDF_API_KEY
 
