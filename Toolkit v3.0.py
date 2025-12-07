@@ -3,14 +3,13 @@
 #----Crypto Volume Analysis Toolkit  v3.0
 #---- Web-Based Version By @TraderAbba
 
-_____Install these 6 REQUIRED libraries from PIP section before running:
+_____Install these 5 REQUIRED libraries from PIP section before running:
 
   1. requests
   2. pandas
-  3. beautifulsoup4
-  4. pypdf
-  5. flask
-  6. lxml
+  3. pypdf
+  4. flask
+  5. lxml
 
 Then run your toolkit.
 
@@ -666,8 +665,8 @@ def crypto_analysis_v4() -> None:
         if oi_change > -0.10: return 2, "Weakening"
         if oi_change > -0.20: return 1, "Exiting"
         return 0, "Exiting"
-
-      def make_oiss(oi_percent_str: str) -> str:
+        
+    def make_oiss(oi_percent_str: str) -> str:
         if not oi_percent_str: return "-"
         val = oi_percent_str.replace("%", "").strip()
         try:
@@ -1234,7 +1233,7 @@ HELP_TEMPLATE = f"""<!DOCTYPE html><html>
         <div class="card">
             <h2>Links & Socials</h2>
             <a href="https://github.com/traderabba/Crypto-Volume-Analysis-Toolkit" class="btn btn-blue" target="_blank">View on GitHub</a>
-            <a href="https://paragraph.com/@traderabba" class="btn btn-blue" target="_blank">Paragraph Blog</a>
+            <a href="https://medium.com/@traderabba" class="btn btn-blue" target="_blank">Medium Blog</a>
             <div style="margin-top:15px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <a href="https://x.com/traderabba" class="btn-share btn-blue" style="margin:0;" target="_blank">X (Twitter)</a>
                 <a href="https://facebook.com/traderabba" class="btn-share btn-blue" style="margin:0;" target="_blank">Facebook</a>
