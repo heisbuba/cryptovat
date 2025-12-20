@@ -37,7 +37,6 @@ def save_config():
     
     return redirect('/')
 
-# [RESTORED]: Factory Reset Logic
 @setup_bp.route("/factory-reset")
 def factory_reset():
     update_config_file({
@@ -49,7 +48,6 @@ def factory_reset():
     })
     return redirect(url_for('setup.setup_page'))
 
-# [RESTORED]: Shutdown Logic (Note: On Koyeb this restarts the container)
 @setup_bp.route("/shutdown", methods=['GET', 'POST'])
 def shutdown():
     os.kill(os.getpid(), signal.SIGINT)
