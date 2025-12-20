@@ -140,7 +140,7 @@ def learn_more() -> None:
     print("="*50)
     print("   📚 Documentation & Source Code:")
     print("   🔗 GitHub: github.com/heisbuba/crypto-volume-analysis-toolkit")
-    print("   🔗 Medium Blog: https://medium.com/@heisbuba")
+    print("   🔗 Medium Blog: https://medium.com/@bubanotes")
     print()
     print("   🛠️ Features:")
     print("   • Spot Volume Tracker - Find high-volume tokens in the last 24 hours")
