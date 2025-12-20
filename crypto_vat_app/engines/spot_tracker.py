@@ -2,6 +2,7 @@ import time
 import datetime
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict, Any, Tuple
 import config
 from utils import create_session, short_num, now_str
 
@@ -104,12 +105,12 @@ def fetch_coinrankings(session):
     print(f"   CoinRankings: {len(tokens)} tokens")
     return tokens
 
-def run_spot_analysis(user_id):
+def run_spot_analysis(user_id: str):
     print("   📊 Starting fresh spot analysis...")
     
-    # Run fetches in parallel
     sources = [fetch_coingecko, fetch_coinmarketcap, fetch_livecoinwatch, fetch_coinrankings]
     results = []
+    
     with ThreadPoolExecutor(max_workers=4) as exe:
         futures = [exe.submit(fn, SESSION) for fn in sources]
         for f in as_completed(futures):
@@ -118,7 +119,6 @@ def run_spot_analysis(user_id):
                 if res: results.extend(res)
             except: continue
     
-    # Process Data
     all_data = {}
     for t in results:
         sym = t.get('symbol', '').upper()
@@ -135,23 +135,83 @@ def run_spot_analysis(user_id):
         ratio = avg_vol/avg_mc if avg_mc else 0
         large_cap = any(m > 1_000_000_000 for m in mcs)
 
-        # Logic from original
+        # Exact logic from v4.0
         if (len(tokens) == 1 and large_cap and ratio >= 0.50) or (len(tokens) >= 2 and ratio > 0.75):
             verified.append({
-                "symbol": sym, "marketcap": avg_mc, "volume": avg_vol,
-                "flipping_multiple": ratio, "source_count": len(tokens), "large_cap": large_cap
+                "symbol": sym, 
+                "marketcap": avg_mc, 
+                "volume": avg_vol,
+                "flipping_multiple": ratio, 
+                "source_count": len(tokens), 
+                "large_cap": large_cap
             })
     
     hot_tokens = sorted(verified, key=lambda x: x['flipping_multiple'], reverse=True)
     
-    # Generate HTML
-    filename = f"{user_id}_Volumed_Spot_Tokens.html"
+    # HTML Report Generation
+    date_prefix = datetime.datetime.now().strftime("%b-%d-%y")
+    filename = f"{user_id}_Volumed_Spot_Tokens_{date_prefix}.html"
     save_path = config.UPLOAD_FOLDER / filename
+    current_time = now_str("%d-%m-%Y %H:%M:%S")
     
-    html = """<h1>SPOT VOLUME REPORT</h1><table><tr><th>Rank</th><th>Ticker</th><th>MC</th><th>Vol</th><th>VTMR</th></tr>"""
-    for i, t in enumerate(hot_tokens):
-        html += f"<tr><td>#{i+1}</td><td>{t['symbol']}</td><td>{short_num(t['marketcap'])}</td><td>{short_num(t['volume'])}</td><td>{t['flipping_multiple']:.1f}x</td></tr>"
-    html += "</table>"
+    max_flip = max((t.get('flipping_multiple', 0) for t in hot_tokens), default=0)
+    high_volume = len([t for t in hot_tokens if t.get('flipping_multiple', 0) >= 2])
+    large_cap_count = len([t for t in hot_tokens if t.get('large_cap')])
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Crypto Volume Tracker v2.0</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
+            .header {{ text-align: center; background-color: #2c3e50; color: white; padding: 20px; border-radius: 10px; }}
+            .summary {{ background-color: #34495e; color: white; padding: 15px; border-radius: 8px; margin: 10px 0; }}
+            .table {{ width: 100%; border-collapse: collapse; background-color: white; }}
+            .table th {{ background-color: #3498db; color: white; padding: 12px; text-align: left; }}
+            .table td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
+            .table tr:nth-child(even) {{ background-color: #f2f2f2; }}
+            .table tr:hover {{ background-color: #e8f4f8; }}
+            .footer {{ text-align: center; margin-top: 20px; color: #7f8c8d; }}
+            .large-cap {{ background-color: #e8f6f3 !important; }}
+            .high-volume {{ color: #e74c3c; font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>SPOT VOLUME CRYPTO TRACKER v2.0</h1>
+            <p>High Volume Spot Tokens Analysis</p>
+            <p><small>Generated on: {current_time}</small></p>
+        </div>
+        <div class="summary">
+            <h3>Summary</h3>
+            <p>Total High-Volume Tokens: {len(hot_tokens)}</p>
+            <p>Peak Flipping (VTMR) Multiple: {max_flip:.1f}x</p>
+            <p>High-Volume Tokens (2x+): {high_volume}</p>
+            <p>Large-Cap Tokens (>$1B): {large_cap_count}</p>
+        </div>
+    """
+
+    if hot_tokens:
+        html += """<table class="table"><tr><th>Rank</th><th>Ticker</th><th>Market Cap</th><th>Volume 24h</th><th>Spot VTMR</th><th>Verifications</th><th>Large Cap</th></tr>"""
+        for i, token in enumerate(hot_tokens):
+            row_class = "large-cap" if token.get('large_cap') else ""
+            volume_class = "high-volume" if token.get('flipping_multiple', 0) >= 2 else ""
+            html += f"""
+            <tr class="{row_class}">
+                <td>#{i+1}</td>
+                <td><b>{token.get('symbol')}</b></td>
+                <td>${short_num(token.get('marketcap', 0))}</td>
+                <td>${short_num(token.get('volume', 0))}</td>
+                <td class="{volume_class}">{token.get('flipping_multiple', 0):.1f}x</td>
+                <td>{token.get('source_count')}</td>
+                <td>{'Yes' if token.get('large_cap') else 'No'}</td>
+            </tr>"""
+        html += "</table>"
+    else:
+        html += "<div style='text-align: center; padding: 40px;'><h3>No high-volume tokens found</h3></div>"
+
+    html += """<div class="footer"><p>Generated by Spot Volume Crypto Tracker v2.0 | By (@heisbuba)</p></div></body></html>"""
     
     with open(save_path, "w", encoding="utf-8") as f: f.write(html)
     print(f"   ✅ Found {len(hot_tokens)} high-volume tokens.")
