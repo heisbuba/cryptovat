@@ -93,14 +93,12 @@ def load_config_from_file():
 
 def update_config_file(updates: dict):
     """Updates config.py globals and saves to JSON"""
-    # Update globals
     if "HTML2PDF_API_KEY" in updates: config.HTML2PDF_API_KEY = updates["HTML2PDF_API_KEY"]
     if "CMC_API_KEY" in updates: config.CMC_API_KEY = updates["CMC_API_KEY"]
     if "LIVECOINWATCH_API_KEY" in updates: config.LIVECOINWATCH_API_KEY = updates["LIVECOINWATCH_API_KEY"]
     if "COINRANKINGS_API_KEY" in updates: config.COINRANKINGS_API_KEY = updates["COINRANKINGS_API_KEY"]
     if "COINALYZE_VTMR_URL" in updates: config.COINALYZE_VTMR_URL = updates["COINALYZE_VTMR_URL"]
 
-    # Save to file
     file_data = {
         "HTML2PDF_API_KEY": config.HTML2PDF_API_KEY,
         "CMC_API_KEY": config.CMC_API_KEY,
