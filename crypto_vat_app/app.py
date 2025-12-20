@@ -1,4 +1,5 @@
 import os
+import threading
 from flask import Flask
 import config
 from utils import setup_logging, load_config_from_file
@@ -10,7 +11,7 @@ from routes.core import core_bp
 app = Flask(__name__)
 app.secret_key = "v5_cloud_ultra_secret"
 
-# Register Blueprints
+# Register Blueprints (The modules)
 app.register_blueprint(auth_bp)
 app.register_blueprint(setup_bp)
 app.register_blueprint(core_bp)
@@ -20,8 +21,18 @@ setup_logging()
 load_config_from_file()
 config.FirebaseHelper.initialize()
 
+# ============================================
+# LAUNCHER
+# ============================================
 if __name__ == "__main__":
-    print(f"\n{'='*60}\nCRYPTO VAT v5.0 (CLOUD EDITION)\n{'='*60}")
+    print(f"\n{'='*60}")
+    print("CRYPTO VOLUME ANALYSIS TOOLKIT v5.0 (CLOUD EDITION)")
+    print(f"{'='*60}")
+    print("Dashboard accessible via Deployment URL")
+    print(f"{'='*60}")
+    
+    # NOTE: 'open_browser' logic removed because this runs on a Cloud Server (headless),
+    # not your local machine. Opening a browser on the server would cause an error.
     
     # Get PORT from environment (Required for Koyeb/Render)
     port = int(os.environ.get("PORT", 5000))
