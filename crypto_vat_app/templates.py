@@ -22,10 +22,12 @@ COMMON_HEAD = """
         .link { color:var(--accent-blue); text-decoration:none; font-size:0.85rem; float:right; }
         .error { color:var(--accent-red); margin-bottom:10px; text-align:center; }
         .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .back-link { display:block; text-align:center; margin-top:20px; color:var(--text-dim); text-decoration:none; }
     </style>
 </head>
 """
 
+# [FIX] Added COMMON_HEAD to Auth Templates to ensure they inherit the styles
 LOGIN_TEMPLATE = f"""<!DOCTYPE html><html>{COMMON_HEAD}<body>
     <div style="display:flex; height:100vh; align-items:center; justify-content:center;">
         <div class="card" style="width:100%; max-width:400px;">
@@ -83,7 +85,7 @@ ADMIN_TEMPLATE = f"""<!DOCTYPE html><html>{COMMON_HEAD}<body>
     </div>
 </body></html>"""
 
-# Original Templates
+# Original Templates from your upload (retained)
 HOME_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
