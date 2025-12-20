@@ -1,0 +1,8 @@
+# Install these libraries
+flask
+requests
+pandas
+pypdf
+lxml
+firebase-admin
+gunicorn
