@@ -27,7 +27,7 @@ def login_required(f):
 @login_required
 def home():
     if "CONFIG_REQUIRED" in config.CMC_API_KEY: return redirect('/setup')
-    return render_template_string(HOME_TEMPLATE)
+    return render_template_string(HOME_TEMPLATE, BASE_URL="")
 
 @core_bp.route("/run-spot")
 @login_required
@@ -72,7 +72,7 @@ def reports():
     if bucket:
         blobs = bucket.list_blobs(prefix=f"reports/{uid}/")
         files = [{"name": b.name.split('/')[-1], "url": b.public_url} for b in blobs]
-    return render_template_string(REPORT_LIST_TEMPLATE, files=files)
+    return render_template_string(REPORT_LIST_TEMPLATE, files=files, BASE_URL="")
 
 @core_bp.route("/help")
 def help_page(): return render_template_string(HELP_TEMPLATE)
