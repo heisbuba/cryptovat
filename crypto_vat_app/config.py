@@ -2,7 +2,7 @@ import os
 import threading
 from pathlib import Path
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
+from firebase_admin import credentials, firestore
 
 # ==============================
 # GLOBAL PATHS & STATE
@@ -20,7 +20,7 @@ PROGRESS = {"percent": 0, "text": "System Idle", "status": "idle"}
 LOCK = threading.Lock()
 
 # ==============================
-# API KEYS & CONFIG (Defaults)
+# API KEYS & CONFIG
 # ==============================
 HTML2PDF_API_KEY = 'CONFIG_REQUIRED_HTML2PDF'
 CMC_API_KEY = 'CONFIG_REQUIRED_CMC'
@@ -34,57 +34,40 @@ STABLECOINS = {
 }
 
 # ==============================
-# FIREBASE HELPER
+# FIREBASE HELPER (LOCAL MODE)
 # ==============================
 class FirebaseHelper:
     _db = None
-    _bucket = None
     _initialized = False
 
     @classmethod
     def initialize(cls):
+        """Initializes Firestore/Auth ONLY. Skips Storage."""
         if not cls._initialized:
             try:
                 cred_path = BASE_DIR / "firebase_credentials.json"
                 if cred_path.exists():
                     cred = credentials.Certificate(str(cred_path))
-                    # Attempt to init with storage, but don't crash if it fails later
-                    try:
-                        firebase_admin.initialize_app(cred, {
-                            'storageBucket': 'YOUR_PROJECT_ID.appspot.com' 
-                        })
-                        cls._bucket = storage.bucket()
-                    except Exception:
-                        # Fallback for Firestore-only (No Storage)
-                        if not len(firebase_admin._apps):
-                            firebase_admin.initialize_app(cred)
-                        cls._bucket = None
+                    # Initialize WITHOUT storageBucket
+                    if not len(firebase_admin._apps):
+                        firebase_admin.initialize_app(cred)
                     
                     cls._db = firestore.client()
                     cls._initialized = True
-                    print("   ✅ Firebase Auth & DB Connected")
-                    if cls._bucket: print("   ✅ Firebase Storage Connected")
-                    else: print("   ⚠️  Firebase Storage Disabled (Local Mode)")
+                    print("   ✅ Firebase Auth & DB Connected (Local Mode)")
                 else:
                     print("   ⚠️  firebase_credentials.json missing.")
             except Exception as e:
                 print(f"   ❌ Firebase Init Error: {e}")
-        return cls._db, cls._bucket
+        return cls._db, None # Return None for bucket
 
     @staticmethod
     def upload_report(user_id: str, local_path: Path):
-        _, bucket = FirebaseHelper.initialize()
-        # [MODIFICATION] If no bucket, return None immediately (Skip Upload)
-        if not bucket:
-            return None
-            
-        try:
-            blob = bucket.blob(f"reports/{user_id}/{local_path.name}")
-            blob.upload_from_filename(str(local_path))
-            blob.make_public()
-            return blob.public_url
-        except Exception:
-            return None
+        """
+        Local Mode: Skips cloud upload.
+        Returns None so the engine knows it's local only.
+        """
+        return None
 
     @staticmethod
     def log_activity(user_id: str, action: str):
