@@ -62,7 +62,7 @@ If you are using **Standalone local environment v3.0 or v4.0**, then after you r
 
 The easiest way to use the toolkit. No installation needed.
 
-- Go to the Live App Here.
+- Go to the [Live App Here](https://huggingface.co/spaces/heisbuba/cryptovat).
 - Create an account and log in.
 - Enter your API keys once in the Setup Wizard.
 - Start scanning immediately using the dashboard.
