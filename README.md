@@ -1,20 +1,21 @@
+
 # **Crypto Volume Analysis Toolkit**
 
-Lightweight and simple toolkit that helps you track high-volume crypto tokens in the last 24 hours and run cross-market analysis using spot + futures data and generate reports in a pdf.
+Lightweight and simple toolkit that helps you track high-volume crypto tokens in the last 24 hours and run cross-market analysis using spot + futures data and generate reports in a PDF.
 
-The generated report is a valuable asset to cryto analysts and trades alike.
+The generated report is a valuable asset to crypto analysts and traders alike.
 
 # **Demo**
 
-![One Page Screenshor - Excludes Remaining Spot Tokens](https://github.com/traderabba/Crypto-Volume-Analysis-Toolkit/blob/images/demo.jpg)
+![One Page Screenshot - Excludes Remaining Spot Tokens](https://github.com/traderabba/Crypto-Volume-Analysis-Toolkit/blob/images/demo.jpg)
 
 # **Features**
 
 - Easy to use
-- Modern Web-UI (in v3.0)
+- Modern Web-UI 
 - Fast, lightweight, and reliable
-- Execute the task in less than minute
-- Auto-save and retrieve api keys and VTMR details
+- Executes the task in less than a minute
+- Auto-save and retrieve API keys and VTMR details
 - Works on any device
 - No complex setup
 - Automatic Spot Volume Tracking
@@ -26,48 +27,62 @@ The generated report is a valuable asset to cryto analysts and trades alike.
 - Useful for daily analysis routines
 - Explainer for Open Interest Signal Score (OISS)
 
-# **Installation & Setup**
+# **Universal Setup (Required for All Versions)**
 
-Before running the toolkit, you need to install these four libraries in your python or Pydroid3 environment:
+**Everyone must do this step first.** To use the tool efficiently, you need specific futures data from CoinAlyze.
 
+1. Go to https://CoinAlyze.net and sign up.
 
-`pip install requests pandas beautifulsoup4 pypdf lxml flask`
+2. Navigate to **Custom Metrics** and tap on **Create Custom Metrics**.
 
-## API keys Setup
+3. Enter **VTMR** in the Name and Short Name fields, then paste the **VTMR code** below in the Expression field and save & close.
 
-Set these in your environment for v20 and in the Setup Wizard for v3.0:
+```code
+((vol_1d[0] / mc_1d[0]) * 10) / 10 * (vol_1d[0] / mc_1d[0] >= 0.5)
+```
 
-- HTML2PDF_API_KEY
-
-- CMC_API_KEY
-
-- LIVECOINWATCH_API_KEY
-
-- COINRANKINGS_API_KEY
-
-## CoinAlyze VRMR Setup
-
-To use the tool efficiently, you need specific futures data from CoinAlyze:
-
-- Go to https://CoinAlyze.net and sign up.
-
-- Navigate to **Custom Metrics** and tap on **Create Custom Metrics**.
-
-- Enter **VTMR** in the Name and Short Name fields, then paste the **VTMR code** in the Expression field 'n save & close.
-
-```((vol_1d[0] / mc_1d[0]) * 10) / 10 * (vol_1d[0] / mc_1d[0] >= 0.5)```
-
-- Go to **Columns**, deselect all, and select **Market Capitalization**, **Volume 24H**, **Open Interest Change % 24H** and **VTMR**, then click **Apply**.
+- Go to **Columns**, deselect all, and select **Market Capitalization**, **Volume 24H**, **Open Interest Change % 24H**, **Predicted Funding Rate Average, OI Weighted**, and **VTMR**, then click **Apply**.
 
 - Bookmark the page and save it as VTMR.
 
 - Go to Chrome menu → Share → Print, and save it as it is without changing the file name in the Download folder.
 
-### Why do This?
+### Why Do This?
 
-Because before you run the toolkit, you need fresh futures data from CoinAlyze. So basically, you only need to launch Chrome  → type VTMR and open it  → print the page into the Download folder. 
+Because before you run the toolkit, you need fresh futures data from CoinAlyze. 
 
-After you run the toolkit, it will take care of cleaning your download folder and leaving only the most valuable reports there. 
+So basically, you only need to launch Chrome  → type VTMR and open it  → print the page into the Download folder. 
+
+**For the web-based version**, you'll upload it and save at **Get Futures** page before running advanced analysis.
+
+If you are using **Standalone local environment v3.0 or v4.0**, then after you run the toolkit, it will take care of cleaning your download folder and leaving only the most valuable reports there. 
+
+
+# 1. Web-Based Setup (Cloud Edition)
+
+The easiest way to use the toolkit. No installation needed.
+
+- Go to the Live App Here.
+- Create an account and log in.
+- Enter your API keys once in the Setup Wizard.
+- Start scanning immediately using the dashboard.
+
+# 2. Local Installation & Setup
+
+If you prefer to run it locally on your own machine.
+
+## Installation
+
+1. Install these 5 libraries in your python or Pydroid3 environment:
+```code
+pip install requests pandas pypdf lxml flask
+```
+3. API Keys Setup
+Set these in your environment variables (for v2.0) or in the Setup Wizard (for v3.0+):
+  - HTML2PDF_API_KEY
+  - CMC_API_KEY
+  - LIVECOINWATCH_API_KEY
+  - COINRANKINGS_API_KEY
 
 # Disclaimer
 
@@ -75,14 +90,12 @@ This toolkit is for research and educational purposes only. It does not, in any 
 
 # Contribute
 
-MIT licensed — use, modify, or build freely.  
-
-Contribute via issues, PRs, or feature suggestions.  
-
-All contributions stay MIT.
+MIT licensed — use, modify, or build freely.
+Contribute via issues, PRs, or feature suggestions.  All contributions stay MIT.
 
 # Changelog
 
-- v1.0: full version created and uploaded   on Nov. 30,2025.
-- v2.0: Integrated IOSS and explainer added on Dec. 02,2025.
-- Removed v1.0 from directory and leave v2.0 on Dec. 02,2025.
+- v1.0: full version created and uploaded on Nov. 30, 2025.
+- v2.0: Integrated OISS and explainer added on Dec. 02, 2025.
+- v3.0: Local Web-UI added.
+- v4.0: Cloud Edition (Hugging Face) with Firebase integration added.
