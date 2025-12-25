@@ -1,4 +1,4 @@
-# 📈 Crypto Volume Analysis Toolkit (CryptoVAT)
+# Crypto Volume Analysis Toolkit (CryptoVAT)
 
 **A powerful web-based suite designed for crypto analysts and traders.** It tracks high-volume tokens across the last 24 hours, performing cross-market analysis using integrated Spot and Futures data. Generate professional, data-driven PDF reports directly in your browser with zero setup required.
 
