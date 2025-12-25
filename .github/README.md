@@ -58,9 +58,9 @@ This project is MIT Licensed — you are free to use, modify, and build upon it.
 
 # **Changelog**
 
-- **v4.0**: Cloud Edition (Hugging Face) with Firebase integration added and major logic and UI overhaul - Dec 25, 2025.
+- **v4.0**: Cloud Edition (Hugging Face) with Firebase integration added and major logic and UI overhaul - ***Dec 25, 2025***.
 - **v3.0**: Local Web-UI added.
-- **v2.0**: Integrated OISS and explainer added on Dec. 02, 2025.
-- **v1.0**: full version created and uploaded on Nov. 30, 2025.
+- **v2.0**: Integrated OISS and explainer added - **Dec. 02, 2025***.
+- **v1.0**: full version created and uploaded - ***Nov. 30, 2025***.
 
 
