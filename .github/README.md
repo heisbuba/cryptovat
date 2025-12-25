@@ -2,11 +2,8 @@
 
 **A powerful web-based suite designed for crypto analysts and traders.** It tracks high-volume tokens across the last 24 hours, performing cross-market analysis using integrated Spot and Futures data. Generate professional, data-driven PDF reports directly in your browser with zero setup required.
 
-# **Demo**
 
-![One Page Screenshot - Excludes Remaining Spot Tokens](https://github.com/heisbuba/crypto-volume-analysis-toolkit/demo/demo.jpg?raw=true)
-
-# **Features**
+# ** Key Features**
 
 - Easy to use
 - Modern Web-UI 
@@ -50,11 +47,11 @@
 
 - Use the upload button in **Get Futures** to upload the file and complete your cross-market analysis.
 
-# ⚖️ Disclaimer
+# ⚖️ **Disclaimer**
 
 CryptoVAT is for research and educational purposes only. It does not provide financial advice, trading signals, or investment recommendations. All data analysis should be verified independently.
 
-# Contribute
+# **Contribute**
 
 This project is MIT Licensed — you are free to use, modify, and build upon it.
 
@@ -64,7 +61,7 @@ This project is MIT Licensed — you are free to use, modify, and build upon it.
 
  - **Feedback**: All suggestions are welcome to help make this the best free toolkit for traders.
 
-# Changelog
+# **Changelog**
 
 - **v4.0**: Cloud Edition (Hugging Face) with Firebase integration added and major logic and UI overhaul - Dec 25, 2025.
 - **v3.0**: Local Web-UI added.
