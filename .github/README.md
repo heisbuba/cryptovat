@@ -12,7 +12,7 @@
 - Our multi-threaded engine does the heavy lifting, delivering deep analysis in under 60 seconds.
 - Secure Firebase integration means your API keys and custom settings are saved and ready every time you log in.
 - Generate and download clean, professional data-driven PDF reports directly in your browser with one click.
-We included built-in logic for the Open Interest Signal Score (OISS) and Funding Rate analysis.
+- We included built-in logic for the Open Interest Signal Score (OISS) and Funding Rate analysis.
 - The system automatically wipes temporary analysis files after every session to keep your workspace private.
 - Developed VTMR (Volume-to-MarketCap-Ratio) metric specifically for you to spot opportunities easily.
 
