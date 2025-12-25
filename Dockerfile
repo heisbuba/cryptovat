@@ -5,7 +5,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # 1. Install system dependencies
-RUN apt-get update && apt-get install -y \
+TunRUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
