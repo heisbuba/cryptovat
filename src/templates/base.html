@@ -3,71 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crypto VAT v4.0 - Cloud Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-/* --- CSS VARIABLES (CUSTOM PROPERTIES) --- */
+    <title>{% block title %}CryptoVAT - Crypto Volume Analysis Toolkit{% endblock %}</title>
+    <meta name="description" content="{% block description %}Professional Crypto Volume Analysis Toolkit. Cross-market Spot/Futures analysis, tracking & automated data-driven PDF reporting.{% endblock %}">
+    <meta name="keywords" content="{% block keywords %}crypto, volume analysis, spot, futures, trading tool, VTMR, open interest, coinalyze, heisbuba{% endblock %}">
+    
+    <meta name="author" content="Buba">
+    <meta name="robots" content="index, follow">
 
+    <meta property="og:title" content="{% block og_title %}CryptoVAT - Professional Volume Analysis{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Track Spot & Futures volume like a pro. Detect whale movements and track VTMR data.{% endblock %}">
+    <meta property="og:url" content="https://cryptovat.hf.space{{ request.path }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="CryptoVAT">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@heisbuba">
+    <meta name="twitter:creator" content="@heisbuba">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ self.og_title() }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ self.og_description() }}{% endblock %}">
+
+   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <style>
+/* --- CSS VARIABLES  --- */
 :root {
-    --bg-dark: #0b0e11;
-    --bg-card: #151a1e;
-    --text-main: #eaecef;
+    /* Backgrounds */
+    --bg-dark: #151a1e;      
+    --bg-card: #1e252a;       
+    --bg-glass: rgba(21, 26, 30, 0.90); 
+    
+    /* Text */
+    --text-main: #ffffff;
     --text-dim: #848e9c;
-    --accent-green: #0ecb81;
+    
+    /* Accents */
+    --accent-green: #10b981;
     --accent-blue: #3b82f6;
     --accent-orange: #f59e0b;
-    --accent-red: #f6465d;
+    --accent-red: #ef4444;
     --accent-purple: #9333ea;
+    
+    /* UI Elements */
     --border: #2b3139;
-    --input-bg: #1e252a;
+    --input-bg: #111827;
+    --radius: 12px;           /
 }
 
 /* --- BASE & LAYOUT --- */
 
 body {
     margin: 0;
-    background: var(--bg-dark);
+    background-color: var(--bg-dark);
     color: var(--text-main);
     font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    
+    /* THE MODERN VIBE */
+    background-image: radial-gradient(circle at top right, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
 }
+      
+main {
+    flex: 1;
+    width: 100%;
+    padding-top: 80px; 
+}
+
+a { text-decoration: none; transition: 0.2s; }
+
+/* --- GLOBAL HEADER (Glassmorphism) --- */
+.header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 70px;
+    padding: 0 20px;
+    box-sizing: border-box;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px); /
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+      
+.header h1 > a {
+    color: #fff;
+}
+.header h1 > a span { color: var(--accent-green); } 
+
+.header h1 > a:hover { opacity: 0.9; }
+
+/* Icons */
+.icon-btn {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    padding: 0 10px;
+    transition: color 0.2s;
+}
+.icon-btn:hover { color: var(--text-main); }
+
+.logout-btn {
+    color: var(--accent-red);
+    font-size: 1.2rem;
+    padding: 0 10px;
+    font-weight: bold;
+}
+.logout-btn:hover { opacity: 0.8; }
+
+
+/* --- CONTAINER & CARDS --- */
 
 .container {
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
-    padding: 0 15px;
+    padding: 0 20px 20px 20px;
     box-sizing: border-box;
 }
 
-/* "Wide" Modifier - for larger layouts */
-.container.wide {
-    max-width: 1000px;
-}
-
-/* --- CARD COMPONENT --- */
+.container.wide { max-width: 1000px; }
 
 .card {
     background: var(--bg-card);
-    padding: 25px;
-    border-radius: 12px;
+    padding: 30px;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
     margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1); /* Subtle shadow */
 }
 
 /* --- TYPOGRAPHY --- */
 
-h1 {
-    color: var(--accent-green);
-    text-align: center;
-    font-size: 1.4rem;
-    margin-bottom: 10px;
-}
-
-h2 {
-    color: var(--accent-blue);
-    font-size: 1.1rem;
-    margin-top: 20px;
-}
+h1 { color: var(--accent-green); text-align: center; font-size: 1.5rem; margin-bottom: 20px; }
+h2 { color: var(--accent-blue); font-size: 1.2rem; margin-top: 25px; }
 
 /* --- FORM ELEMENTS --- */
 
@@ -75,137 +154,285 @@ input[type="text"],
 input[type="email"],
 input[type="password"] {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     background: var(--input-bg);
     border: 1px solid var(--border);
     color: #fff;
     border-radius: 8px;
-    font-family: monospace;
-    margin-top: 5px;
+    font-family: 'Inter', sans-serif; /* Cleaner than monospace for inputs */
+    margin-top: 8px;
     box-sizing: border-box;
+    font-size: 0.95rem;
+}
+input:focus { outline: none; border-color: var(--accent-green); }
+
+/* --- PASSWORD TOGGLE --- */
+
+.password-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
 }
 
+.password-wrapper input {
+    width: 100%;
+    padding-right: 45px; 
+}
+
+.toggle-btn {
+    position: absolute;
+    right: 15px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dim);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.toggle-btn:hover {
+    color: var(--accent-green);
+}
+
+.toggle-btn:focus {
+    outline: none;
+}
+      
 /* --- BUTTONS --- */
 
-.btn {
+.btn, .help-btn {
     display: block;
     width: 100%;
     padding: 15px;
     border: none;
     border-radius: 8px;
-    font-weight: 800;
+    font-weight: 700;
     cursor: pointer;
     text-align: center;
-    text-decoration: none;
-    margin-top: 10px;
+    margin-top: 15px;
     font-size: 0.95rem;
-    transition: transform 0.2s ease; /* For consistent hover animation */
+    transition: all 0.2s ease;
+    box-sizing: border-box;
 }
+.btn:hover, .help-btn:hover { transform: translateY(-2px); opacity: 0.95; }
 
-.btn:hover {
-    transform: translateY(-2px);
-}
-
-/* Button Color Variants */
-.btn-green {
-    background: var(--accent-green);
-    color: #000;
-}
-
-.btn-green:hover {
-    box-shadow: 0 4px 12px rgba(14, 203, 129, 0.3);
-    opacity: 0.9;
-}
+/* Variants */
+.btn-green { background: var(--accent-green); color: #000; }
+.btn-green:hover { box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
 
 .btn-blue {
-    background: var(--bg-card);
-    width: 90%;
+    background: transparent;
     border: 1px solid var(--accent-blue);
     color: var(--accent-blue);
+    width: 100%; 
 }
-
-.btn-blue:hover {
-    background: rgba(59, 130, 246, 0.1);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+.btn-blue:hover { 
+  background: rgba(59, 130, 246, 0.1); 
 }
-
 .btn-links {
-    background: var(--bg-card);
-    width: 80%;
+    background: transparent;
     border: 1px solid var(--accent-blue);
     color: var(--accent-blue);
+    width: auto; 
+    display: inline-block;
+    padding: 10px 25px;
 }
-
 .btn-links:hover {
-    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--text-main);
+    color: var(--text-main);
+    background: rgba(59,130,246,0.1);
 }
-
 .btn-red {
-    background: rgba(246, 70, 93, 0.1);
-    width: 95%;
+    background: rgba(239, 68, 68, 0.1);
     border: 1px solid var(--accent-red);
     color: var(--accent-red);
+    width: 100%;
 }
+.btn-red:hover { background: rgba(239, 68, 68, 0.2); }
 
-.btn-red:hover {
-    background: rgba(246, 70, 93, 0.2);
-    box-shadow: 0 4px 12px rgba(246, 70, 93, 0.2);
-}
-
-/* --- LINK STYLES --- */
-
-.link {
-    color: var(--accent-blue);
-    text-decoration: none;
-    font-size: 0.85rem;
-    float: right;
-}
-
-.link:hover {
-    text-decoration: underline;
-}
-
-.back-link {
-    display: block;
-    text-align: center;
-    margin-top: 20px;
+/* Navigation Buttons (Back Buttons) */
+.help-nav-btn {
+    background: transparent;
+    border: 1px solid var(--border);
     color: var(--text-dim);
-    text-decoration: none;
+    width: auto; 
+    display: inline-block;
+    padding: 10px 25px;
+}
+.help-nav-btn:hover {
+    border-color: var(--text-main);
+    color: var(--text-main);
+    background: rgba(255,255,255,0.05);
 }
 
-.back-link:hover {
-    color: var(--accent-blue);
-}
+/* --- UTILITIES --- */
+.link { color: var(--accent-blue); font-size: 0.9rem; float: right; margin-top: 5px;}
+.link:hover { text-decoration: underline; }
 
-/* --- GRID LAYOUT --- */
+.grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
-.grid-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-/* --- MESSAGE STATES --- */
-
+/* Messages */
 .error-message {
-    color: var(--accent-red);
-    padding: 10px;
-    background: rgba(246, 70, 93, 0.1);
+    color: #fee2e2;
+    padding: 15px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--accent-red);
     border-radius: 8px;
-    margin: 10px 0;
+    margin: 15px 0;
+    text-align: center;
+}
+.success-message {
+    color: #d1fae5;
+    padding: 15px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--accent-green);
+    border-radius: 8px;
+    margin: 15px 0;
+    text-align: center;
 }
 
-.success-message {
-    color: var(--accent-green);
-    padding: 10px;
-    background: rgba(14, 203, 129, 0.1);
-    border-radius: 8px;
-    margin: 10px 0;
+/* --- GLOBAL NAV BUTTON AREA --- */
+.back-nav-container {
+    margin: 0px;
+    padding: 30px 0 30px 0;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
 }
-        </style>
+
+.back-nav-container:empty {
+    display: none;
+    padding: 0;
+    margin: 0;
+    border: none;
+      }
+.back-nav-btn { margin-bottom: 5px; }
+
+/* --- GLOBAL FOOTER --- */
+
+.footer {
+    background: transparent; 
+    border-top: 1px solid var(--border);
+    padding: 40px 5%; 
+    margin-top: auto; 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+.footer .credit a { 
+    color: var(--accent-green); 
+    font-weight: 600; 
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+.footer .credit a:hover { opacity: 0.8; }
+
+/* Mobile Stack */
+@media (max-width: 600px) {
+    .footer { 
+        flex-direction: column; 
+        gap: 20px; 
+        text-align: center; 
+        padding-bottom: 30px;
+    }
+}
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    {% block content %}{% endblock %}
+
+    <div class="header">
+        <h1>
+            <a href="{{ url_for('main.home') if session.get('user_id') else url_for('main.index') }}" style="display: flex; align-items: center; gap: 10px;">
+                <span>Crypto<span style="color:var(--accent-green)">VAT</span></span>
+            </a>
+        </h1>
+        <div style="display: flex; align-items: center; gap: 5px;">
+            
+            <a href="{{ url_for('main.help_page') }}" class="icon-btn" title="Help">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </a>
+
+            {% if session.get('user_id') %}
+                {% if request.endpoint != 'main.setup' %}
+                    <a href="{{ url_for('main.settings') }}" class="icon-btn" title="Settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </a>
+                {% endif %}
+                
+                <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Logout" style="display: flex; align-items: center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <main>
+        {% block content %}{% endblock %}
+        
+         <div class="back-nav-container">
+            {%- if session.get('user_id') and request.endpoint not in ['main.home', 'main.setup', 'auth.login', 'auth.register', 'auth.reset_password', 'main.help_page'] -%}
+                <a href="{{ url_for('main.home') }}" class="btn btn-links back-nav-btn">
+                    ← BACK TO DASHBOARD
+                </a>
+                {%- if request.endpoint == 'main.admin_dashboard' and server_time -%}
+                    <p style="color: var(--text-dim); font-size: 0.75rem; letter-spacing: 0.5px; margin-top: 15px; margin-bottom: 0; font-family: 'JetBrains Mono', monospace;">
+                        SERVER TIMESTAMP: {{ server_time }}
+                    </p>
+                {%- endif -%}
+            {%- elif request.endpoint == 'main.help_page' -%}
+                {%- if session.get('user_id') -%}
+                    {%- if is_setup_complete -%}
+                        <a href="{{ url_for('main.home') }}" class="help-btn help-nav-btn back-nav-btn">← BACK TO DASHBOARD</a>
+                    {%- else -%}
+                        <a href="{{ url_for('main.setup') }}" class="help-btn help-nav-btn back-nav-btn">← BACK TO SETUP WIZARD</a>
+                    {%- endif -%}
+                {%- else -%}
+                    {%- if request.referrer and 'register' in request.referrer -%}
+                        <a href="{{ url_for('auth.register') }}" class="help-btn help-nav-btn back-nav-btn">← BACK TO REGISTER</a>
+                    {%- elif request.referrer and 'reset-password' in request.referrer -%}
+                         <a href="{{ url_for('auth.reset_password') }}" class="help-btn help-nav-btn back-nav-btn">← BACK TO RESET PASSWORD</a>
+                    {%- else -%}
+                        <a href="{{ url_for('auth.login') }}" class="help-btn help-nav-btn back-nav-btn">← BACK TO LOGIN</a>
+                    {%- endif -%}
+                {%- endif -%}
+            {%- endif -%}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="credit">
+            &copy; <span id="year"></span> 
+            <a href="{{ url_for('main.index') }}" title="Crypto Volume Analysis Toolkit">CryptoVAT</a>. Created by <a href="https://x.com/heisbuba" title="X @heisbuba" target="_blank">Buba</a> with Data curiosity. MIT Licenced.
+        </div>
+    </footer>
+
+<script>
+      // Update year automically
+        document.getElementById('year').textContent = new Date().getFullYear();
+      // Password toggle function
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const iconEye = btn.querySelector('.icon-eye');
+            const iconEyeOff = btn.querySelector('.icon-eye-off');
+            
+            if (input.type === "password") {
+                input.type = "text";
+                iconEye.style.display = "none";
+                iconEyeOff.style.display = "block";
+            } else {
+                input.type = "password";
+                iconEye.style.display = "block";
+                iconEyeOff.style.display = "none";
+            }
+        }
+</script>
 </body>
 </html>
