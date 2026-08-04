@@ -29,6 +29,60 @@ ORIGINAL_MATCHED_HEADERS = ["Ticker", "Spot MrktCap", "Spot Volume", "Spot VTMR"
 ORIGINAL_FUTURES_HEADERS = ["Ticker", "Market Cap", "Volume", "VTMR", "OISS", "Funding Rate"]
 ORIGINAL_SPOT_HEADERS = ["Ticker", "MarketCap", "Volume", "VTMR"]
 
+
+class SignalEngine:
+
+    @staticmethod
+    def _oi_score_and_signal(oi_change: float) -> Tuple[int, str]:
+        if oi_change > 0.20: return 5, "Strong"
+        if oi_change > 0.10: return 4, "Bullish"
+        if oi_change > 0.00: return 3, "Build-Up"
+        if oi_change > -0.10: return 2, "Weakening"
+        if oi_change > -0.20: return 1, "Exiting"
+        return 0, "Exiting"
+
+    @staticmethod
+    def _funding_score_and_signal(funding_val: float) -> Tuple[str, str]:
+        if funding_val >= 0.05: return "Greed", "oi-strong"
+        if funding_val > 0.00: return "Bullish", "oi-strong"
+        if funding_val <= -0.05: return "Extreme Fear", "oi-weak"
+        if funding_val < 0.00: return "Bearish", "oi-weak"
+        return "Neutral", ""
+
+    @classmethod
+    def make_oiss(cls, oi_pct: Optional[float]) -> str:
+        if oi_pct is None or (isinstance(oi_pct, float) and pd.isna(oi_pct)):
+            return "-"
+        try:
+            oi_change = oi_pct / 100
+            score, signal = cls._oi_score_and_signal(oi_change)
+
+            if oi_change > 0: css_class = "oi-strong"
+            elif oi_change < 0: css_class = "oi-weak"
+            else: css_class = ""
+
+            sign = "+" if oi_change > 0 else ""
+            if css_class:
+                return f'<span class="{css_class}">{sign}{oi_change*100:.0f}%</span> {signal}'
+            return f"{sign}{oi_change*100:.0f}% {signal}"
+        except Exception:
+            return "-"
+
+    @classmethod
+    def make_funding_signal(cls, funding_pct: Optional[float]) -> str:
+        if funding_pct is None or (isinstance(funding_pct, float) and pd.isna(funding_pct)):
+            return "-"
+        try:
+            val = float(funding_pct)
+            signal_word, css_class = cls._funding_score_and_signal(val)
+
+            if css_class:
+                return f'<span class="{css_class}">{val}%</span> <span style="font-size:0.8em; color:#7f8c8d;">{signal_word}</span>'
+            return f'{val}% {signal_word}'
+        except Exception:
+            return "-"
+
+
 class FileScanner:
     """Locates the latest Spot and Futures data files in the USER directory."""
     @staticmethod
@@ -49,7 +103,7 @@ class FileScanner:
             if f.is_file():
                 try:
                     file_time = datetime.datetime.fromtimestamp(f.stat().st_mtime)
-                    if file_time.date() == today:  # Only use today's files
+                    if file_time.date() == today: 
                         today_files.append(f)
                 except Exception:
                     continue
@@ -89,7 +143,7 @@ class DataProcessor:
             col_map = {
                 'ticker': 'ticker',
                 'symbol': 'ticker', 
-                'vtmr': 'vtmr',           # <--- Ensures VTMR isn't blank
+                'vtmr': 'vtmr',         
                 'spot_vtmr': 'vtmr', 
                 'flipping_multiple': 'vtmr',
                 'market_cap': 'market_cap',
@@ -127,7 +181,7 @@ class DataProcessor:
             df_display[m] = ""
         df_display = df_display[df_cols]
         df_display.columns = headers
-        # escape=False is critical for rendering ticker links
+    
         table_html = df_display.to_html(index=False, classes='table', escape=False)
         return f'<div class="table-container"><h2>{title}</h2>{table_html}</div>'
 
@@ -136,9 +190,17 @@ class DataProcessor:
         """Merges Spot and Futures dataframes and creates the final HTML report."""
         if futures_df.empty or spot_df.empty:
             return None
-        
-        if 'oiss' not in futures_df.columns:
+
+        futures_df = futures_df.copy()
+        if 'oi_pct' in futures_df.columns:
+            futures_df['oiss'] = futures_df['oi_pct'].apply(SignalEngine.make_oiss)
+        else:
             futures_df['oiss'] = "-"
+
+        if 'funding_pct' in futures_df.columns:
+            futures_df['funding'] = futures_df['funding_pct'].apply(SignalEngine.make_funding_signal)
+        else:
+            futures_df['funding'] = "-"
 
         valid_futures = futures_df.copy()
         try:
@@ -163,19 +225,10 @@ class DataProcessor:
         if 'vtmr' in spot_only.columns:
             try:
                 spot_only = spot_only.copy()
-                spot_only.loc[:, 'flip_numeric'] = spot_only['vtmr'].astype(str).str.replace('x', '', case=False).astype(float)
-                spot_only = spot_only[spot_only['flip_numeric'] >= 0.50]
-                spot_only = spot_only.drop(columns=['flip_numeric'])
+                spot_only.loc[:, 'sort_val'] = spot_only['vtmr'].astype(str).str.replace('x', '', case=False).astype(float)
+                spot_only = spot_only[spot_only['sort_val'] >= 0.50].sort_values('sort_val', ascending=False).drop(columns=['sort_val'])
             except Exception as e:
                 print(f"   Spot filtering error: {e}")
-        
-        if 'vtmr' in spot_only.columns:
-            try:
-                spot_only = spot_only.copy()
-                spot_only.loc[:, 'sort_val'] = spot_only['vtmr'].astype(str).str.replace('x', '', case=False).astype(float)
-                spot_only = spot_only.sort_values('sort_val', ascending=False).drop(columns=['sort_val'])
-            except Exception:
-                pass
         
         merged_cols = ['ticker', 'market_cap_spot', 'volume_spot', 'vtmr_spot', 'volume_fut', 'vtmr_display', 'oiss', 'funding']
         futures_cols = ['ticker', 'market_cap', 'volume', 'vtmr_display', 'oiss', 'funding']
@@ -266,11 +319,10 @@ def crypto_analysis_v4(user_keys, user_id) -> None:
         # Create PDF
         pdf_path = convert_html_to_pdf(html_content, user_id)
         
-        print("   🧹 Cleaning up source files after analysis...")
-        cleanup_after_analysis(spot_file, futures_file)
-        
         if pdf_path:
             print(f"   PDF saved: {pdf_path}")
+            print("   🧹 Cleaning up source files after analysis...")
+            cleanup_after_analysis(spot_file, futures_file)
             print("   📊 Analysis completed! Source files cleaned up.")
         else:
             print("   PDF conversion failed! Check API Key")

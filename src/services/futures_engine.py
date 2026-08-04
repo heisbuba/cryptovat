@@ -1,7 +1,7 @@
 import re
 import pandas as pd
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 try:
     import pypdf
@@ -15,8 +15,8 @@ class TokenData:
     market_cap: str
     volume: str
     vtmr: float
-    funding: str = "-"
-    oiss: str = "-"
+    oi_pct: Optional[float] = None      
+    funding_pct: Optional[float] = None  
 
 class PDFParser:
     """Handles extraction of tabular data from Coinalyze PDFs using regex."""
@@ -35,56 +35,18 @@ class PDFParser:
         'open interest - funding rate - liquidations'
     }
 
-    # --- Signal Helpers  ---
 
     @staticmethod
-    def _oi_score_and_signal(oi_change: float) -> Tuple[int, str]:
-        if oi_change > 0.20: return 5, "Strong"
-        if oi_change > 0.10: return 4, "Bullish"
-        if oi_change > 0.00: return 3, "Build-Up"
-        if oi_change > -0.10: return 2, "Weakening"
-        if oi_change > -0.20: return 1, "Exiting"
-        return 0, "Exiting"
-
-    @staticmethod
-    def _funding_score_and_signal(funding_val: float) -> Tuple[str, str]:
-        if funding_val >= 0.05: return "Greed", "oi-strong"
-        if funding_val > 0.00: return "Bullish", "oi-strong"
-        if funding_val <= -0.05: return "Extreme Fear", "oi-weak"
-        if funding_val < 0.00: return "Bearish", "oi-weak"
-        return "Neutral", ""
-
-    @classmethod
-    def make_oiss(cls, oi_percent_str: str) -> str:
-        if not oi_percent_str: return "-"
-        val = oi_percent_str.replace("%", "").strip()
+    def _to_float(pct_str: Optional[str]) -> Optional[float]:
+        if not pct_str:
+            return None
+        cleaned = pct_str.replace("%", "").strip()
+        if cleaned in ("-", "–", "—", "") or cleaned.lower() == "n/a":
+            return None
         try:
-            oi_change = float(val) / 100
-            score, signal = cls._oi_score_and_signal(oi_change)
-            
-            if oi_change > 0: css_class = "oi-strong"
-            elif oi_change < 0: css_class = "oi-weak"
-            else: css_class = ""
-
-            sign = "+" if oi_change > 0 else ""
-            if css_class:
-                return f'<span class="{css_class}">{sign}{oi_change*100:.0f}%</span> {signal}'
-            return f"{sign}{oi_change*100:.0f}% {signal}"
+            return float(cleaned)
         except Exception:
-            return "-"
-
-    @classmethod
-    def make_funding_signal(cls, funding_str: str) -> str:
-        if not funding_str or funding_str in ['-', 'N/A']: return "-"
-        try:
-            val = float(funding_str.replace('%', '').strip())
-            signal_word, css_class = cls._funding_score_and_signal(val)
-            
-            if css_class:
-                return f'<span class="{css_class}">{val}%</span> <span style="font-size:0.8em; color:#7f8c8d;">{signal_word}</span>'
-            return f'{val}% {signal_word}'
-        except Exception:
-            return funding_str
+            return None
 
     # --- Core Extraction Logic ---
 
@@ -181,10 +143,7 @@ class PDFParser:
         
         for k in range(limit):
             name, ticker = token_pairs[k]
-            mc, vol, vtmr, oi_pct, fund_pct = financials[k]
-
-            oiss_val = cls.make_oiss(oi_pct) if oi_pct and oi_pct not in ['-', 'N/A'] else "-"
-            funding_val = cls.make_funding_signal(fund_pct)
+            mc, vol, vtmr, oi_pct_str, fund_pct_str = financials[k]
 
             tokens.append(TokenData(
                 ticker=ticker,
@@ -192,8 +151,8 @@ class PDFParser:
                 market_cap=mc,
                 volume=vol,
                 vtmr=float(vtmr),
-                funding=funding_val,
-                oiss=oiss_val
+                oi_pct=cls._to_float(oi_pct_str),
+                funding_pct=cls._to_float(fund_pct_str),
             ))
         return tokens
 
