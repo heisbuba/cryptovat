@@ -58,6 +58,7 @@ This project is MIT Licensed — you are free to use, modify, and build upon it.
 
 # **Changelog**
 
+- **v4.6**: Enhanced futures PDF parser; delivering accurate, cross‑platform data extraction from Coinalyze reports. - *August 4, 2026*
 - **v4.5**: Major UI/UX fix, Integration of semi-automated AI Powered Trading Journal, Deep Diver Engine, and PWA support - *Feb 12, 2026* 
 - **v4.1**: Improved Spot Volume Tracker Data Accuracy with mandatoy CoinGecko Demo API configuration - *Jan 11, 2026*
 - **v4.0**: Cloud Edition (Hugging Face) with Firebase integration added and major logic and UI overhaul - *Dec 25, 2025*.
