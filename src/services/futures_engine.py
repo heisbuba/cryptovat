@@ -22,19 +22,20 @@ class PDFParser:
     """Handles extraction of tabular data from Coinalyze PDFs using regex."""
     
     FINANCIAL_PATTERN = re.compile(
-        r'(\$?[+-]?[\d,\.]+[kKmMbB]?)\s+'             
-        r'(\$?[+-]?[\d,\.]+[kKmMbB]?)\s+'             
-        r'(?:([+\-]?[\d\.\,]+\%?|[\-\–\—]|N\/A)\s+)?' 
-        r'(?:([+\-]?[\d\.\,]+\%?|[\-\–\—]|N\/A)\s+)?' 
-        r'(\d*\.?\d+)'                                
+        r'(\$?[+-]?[\d,\.]+[kKmMbB]?|[Nn]\/[Aa])\s+'
+        r'(\$?[+-]?[\d,\.]+[kKmMbB]?|[Nn]\/[Aa])\s+'
+        r'(?:([+\-]?[\d\.\,]+\%?|[\-\–\—]|[Nn]\/[Aa])\s+)?'
+        r'(?:([+\-]?[\d\.\,]+\%?|[\-\–\—]|[Nn]\/[Aa])\s+)?'
+        r'(\d*\.?\d+)'
     )
 
     IGNORE_KEYWORDS = {
         'page', 'coinalyze', 'contract', 'filter', 'column',
-        'mkt cap', 'vol 24h', 'vtmr', 'coins', 'all contracts', 'custom metrics', 'watchlists'
+        'mkt cap', 'vol 24h', 'vtmr', 'coins', 'all contracts', 'custom metrics', 'watchlists',
+        'open interest - funding rate - liquidations'
     }
 
-    # --- Signal Helpers (Moved inside to keep logic self-contained) ---
+    # --- Signal Helpers  ---
 
     @staticmethod
     def _oi_score_and_signal(oi_change: float) -> Tuple[int, str]:
@@ -106,7 +107,7 @@ class PDFParser:
                 return pd.DataFrame()
             df = pd.DataFrame([vars(t) for t in data])
             df['ticker'] = df['ticker'].apply(lambda x: re.sub(r'[^A-Z0-9]', '', str(x).upper()))
-            df = df[df['ticker'].str.len() > 1]
+            df = df[df['ticker'].str.len() >= 1]
             print(f"   Valid futures tokens: {len(df)}")
             return df
         except Exception as e:
@@ -154,6 +155,15 @@ class PDFParser:
                         i += 2
                         continue
             
+            same_line_split = line.rsplit(' ', 1)
+            if len(same_line_split) == 2:
+                name_part, ticker_part = same_line_split
+                same_line_ticker = cls._clean_ticker_strict(ticker_part)
+                if same_line_ticker and name_part.strip():
+                    token_pairs.append((name_part, same_line_ticker))
+                    i += 1
+                    continue
+
             if i + 1 < len(raw_text_lines):
                 name_candidate = raw_text_lines[i]
                 ticker_candidate_raw = raw_text_lines[i + 1]
@@ -189,7 +199,9 @@ class PDFParser:
 
     @staticmethod
     def _clean_ticker_strict(text: str) -> Optional[str]:
+        if not text.isupper():
+            return None
         if len(text) > 15: return None
         cleaned = re.sub(r'[^A-Z0-9]', '', text.upper())
-        if 2 <= len(cleaned) <= 12: return cleaned
+        if 1 <= len(cleaned) <= 12: return cleaned
         return None
