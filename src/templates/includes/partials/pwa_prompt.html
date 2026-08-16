@@ -78,7 +78,16 @@
             pwaWrapper.innerHTML = `
                 <div class="pwa-bar-content">
                     <div class="pwa-bar-info">
-                        <span class="pwa-bar-icon">📊</span>
+                        <span class="pwa-bar-icon"><svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="120" fill="#151a1e"/>
+  
+  <path d="M380 380L430 430" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="160" stroke="#ffffff" stroke-width="32"/>
+  
+  <rect x="190" y="270" width="30" height="60" rx="4" fill="#10b981"/>
+  <rect x="241" y="230" width="30" height="100" rx="4" fill="#10b981"/>
+  <rect x="292" y="190" width="30" height="140" rx="4" fill="#10b981"/>
+</svg></span>
                         <div class="pwa-bar-text">
                             <strong>QuantVAT App</strong>
                             <span>Install for instant access</span>
@@ -94,16 +103,17 @@
             setTimeout(() => pwaWrapper.classList.add('visible'), 100);
 
             document.getElementById('btn-pwa-install').addEventListener('click', async () => {
-                if (isIOS) {
-                    alert("To install: Tap the 'Share' icon and select 'Add to Home Screen'.");
-                    return;
-                }
-                if (!deferredPrompt) return;
-                pwaWrapper.classList.remove('visible');
-                deferredPrompt.prompt();
-                await deferredPrompt.userChoice;
-                deferredPrompt = null;
-            });
+    if (isIOS) {
+        alert("To install: Tap the 'Share' icon and select 'Add to Home Screen'.");
+        return;
+    }
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    pwaWrapper.classList.remove('visible');
+    setTimeout(() => { pwaWrapper.remove(); style.remove(); }, 600);
+});
 
             document.getElementById('btn-pwa-close-trigger').addEventListener('click', () => {
                 pwaWrapper.classList.remove('visible');
