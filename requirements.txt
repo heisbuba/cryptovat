@@ -1,7 +1,9 @@
 flask
+Flask-WTF>=1.2.0
 firebase-admin
 requests
 pandas
+aiohttp
 pypdf==6.4.0
 lxml
 gunicorn
