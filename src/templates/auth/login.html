@@ -6,16 +6,43 @@
 {% block keywords %}login, secure access, crypto dashboard, cryptovat, trading tools{% endblock %} 
 {% block content %}
 <div class="container">
-    <h1>🔐 Login to Your Account</h1>
+    <h1>
+        <span style="display: inline-flex; vertical-align: middle; margin-right: 6px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+        </span>
+        Login to Your Account
+    </h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="padding:15px; margin-bottom:20px; border-radius:8px; font-weight:bold; background:{{ 'rgba(14,203,129,0.15)' if category == 'success' else 'rgba(246,70,93,0.15)' }}; color:{{ '#0ecb81' if category == 'success' else '#f6465d' }}; border:1px solid {{ '#0ecb81' if category == 'success' else '#f6465d' }};">
+              {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <div class="card">
        <p>Login to your account to perform crypto cross-market, volume, and data-driven analysis daily for free.</p>
     </div>
     <div class="card">
         {% if error %}
-        <div class="error-message">⚠️ {{ error }}</div>
+        <div class="error-message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            {{ error }}
+        </div>
         {% endif %}
         
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Email Address</label>
             <input type="email" name="email" required placeholder="email@example.com" autocomplete="email">
             
