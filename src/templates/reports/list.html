@@ -11,23 +11,47 @@
       width: 90%;
       max-width: 600px; 
       margin: 40px auto;
+      padding: 0 20px 20px 20px;
       box-sizing: border-box;
     }
   
     h1 { 
       text-align: center; 
-      color: var(--accent-green, #10b981); 
+      color: var(--accent-green); 
       font-size: 1.6rem;
       font-weight: 800;
       margin-bottom: 30px; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* --- FLASH MESSAGES --- */
+    .flash-msg {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .flash-msg.success {
+        background: rgba(16, 185, 129, 0.15);
+        color: #d1fae5;
+        border: 1px solid var(--accent-green);
+    }
+    .flash-msg.error {
+        background: rgba(239, 68, 68, 0.15);
+        color: #fee2e2;
+        border: 1px solid var(--accent-red);
     }
 
     /* --- FILE CARD --- */
     .file-item { 
-        background: var(--bg-card, #1e252a); 
+        background: var(--bg-card); 
         padding: 18px 20px; 
         border-radius: 12px; 
-        border: 1px solid var(--border, #2b3139); 
+        border: 1px solid var(--border); 
         margin-bottom: 12px; 
         display: flex; 
         justify-content: space-between; 
@@ -37,23 +61,23 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
   
-   .file-item:has(.menu-checkbox:checked) {
-    z-index: 50;
-  }
+    .file-item:has(.menu-checkbox:checked) {
+        z-index: 50;
+    }
 
     .file-item:hover { 
-        border-color: var(--accent-green, #10b981); 
+        border-color: var(--accent-green); 
         transform: translateX(5px);
     }
 
     /* --- FILENAME --- */
     .filename { 
-    font-family: monospace; 
-    font-size: 0.9rem; 
-    color: #eaecef; 
-    word-break: break-all; 
-    margin-right: 15px; 
-    flex: 1; 
+        font-family: 'JetBrains Mono', monospace; 
+        font-size: 0.9rem; 
+        color: #eaecef; 
+        word-break: break-all; 
+        margin-right: 15px; 
+        flex: 1; 
     }
 
     /* --- SPLIT BUTTON COMPONENT --- */
@@ -65,16 +89,16 @@
     }
 
     .btn-main {
-    background: var(--accent-green, #10b981);
-    color: #000 !important; 
-    padding: 8px 16px;
-    border-radius: 6px 0 0 6px; 
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-decoration: none;
-    border: 1px solid var(--accent-green, #10b981);
-    transition: background 0.2s;
-    z-index: 2;
+        background: var(--accent-green);
+        color: #000; 
+        padding: 8px 16px;
+        border-radius: 6px 0 0 6px; 
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid var(--accent-green);
+        transition: background 0.2s;
+        z-index: 2;
     }
 
     .btn-main:hover {
@@ -82,17 +106,23 @@
         border-color: #059669;
     }
 
+    .btn-main.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
     .btn-arrow {
-    background: var(--accent-green, #10b981);
-    color: #000;
-    padding: 8px 10px;
-    border-radius: 0 6px 6px 0;
-    border: 1px solid var(--accent-green, #10b981);
-    border-left: 1px solid rgba(0,0,0,0.2);
-    cursor: pointer;
-    font-size: 0.75rem;
-    transition: background 0.2s;
-    outline: none;
+        background: var(--accent-green);
+        color: #000;
+        padding: 8px 10px;
+        border-radius: 0 6px 6px 0;
+        border: 1px solid var(--accent-green);
+        border-left: 1px solid rgba(0,0,0,0.2);
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: background 0.2s;
+        outline: none;
     }
 
     .btn-arrow:hover, .btn-arrow:focus {
@@ -109,7 +139,7 @@
         border: 1px solid #2b3139;
         border-radius: 6px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        min-width: 130px;
+        min-width: 160px;
         z-index: 100;
         opacity: 0;
         visibility: hidden;
@@ -124,100 +154,162 @@
     }
   
     .dropdown-item {
-        display: block;
-        padding: 12px 15px;
+        padding: 10px 14px;
         color: #eaecef;
         text-decoration: none;
         font-size: 0.85rem;
         transition: background 0.2s;
         display: flex;
         align-items: center;
+        gap: 8px;
         font-weight: 500;
+        white-space: nowrap;
     }
 
     .dropdown-item:hover {
         background: rgba(16, 185, 129, 0.1);
-        color: var(--accent-green, #10b981);
+        color: var(--accent-green);
     }
 
-    .delete-item {
-        color: #ff4d4d !important; /* Overriding the default text color */
+    .dropdown-item.delete-item {
+        color: #ff4d4d;
     }
 
-    .delete-item:hover {
-        background: rgba(255, 77, 77, 0.1) !important; /* Specific red tint for hover */
-      }
+    .dropdown-item.delete-item:hover {
+        background: rgba(255, 77, 77, 0.1);
+        color: #ff4d4d;
+    }
   
     .icon-dl { 
-        margin-right: 8px; 
-        color: var(--accent-green, #10b981); 
+        color: var(--accent-green); 
+        flex-shrink: 0;
     }
 
-    icon-delete { 
-        margin-right: 8px; 
+    .icon-delete { 
         color: #ef4444; 
-      }
+        flex-shrink: 0;
+    }
+
+    /* --- EMPTY STATE --- */
+    .empty-state {
+        text-align: center; 
+        color: var(--text-dim); 
+        margin-top: 40px;
+        font-size: 0.95rem;
+    }
 
     /* Mobile Adjustment */
     @media (max-width: 480px) {
         .container {
-            width: 90%;
+            width: 100%;
             margin-top: 20px;
-            padding: 0;
+            padding: 0 15px 20px 15px;
         }
         .file-item {
             padding: 15px;
         }
         h1 { font-size: 1.4rem; }
+        .filename { font-size: 0.8rem; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div style="padding:15px; margin-bottom:20px; border-radius:8px; font-weight:bold; background:{{ 'rgba(14,203,129,0.15)' if category == 'success' else 'rgba(246,70,93,0.15)' }}; color:{{ '#0ecb81' if category == 'success' else '#f6465d' }}; border:1px solid {{ '#0ecb81' if category == 'success' else '#f6465d' }};">
-              {{ message }}
-          </div>
+          <div class="flash-msg {{ category }}">{{ message }}</div>
         {% endfor %}
       {% endif %}
     {% endwith %}
   
-    <h1>📄 Analysis Reports</h1>
+    <h1>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        Analysis Reports
+    </h1>
     
     {% if report_files %}
+        {# Group files by stem (filename without extension) #}
+        {% set ns = namespace(reports={}) %}
         {% for f in report_files %}
-      <div class="file-item" id="file-row-{{ loop.index }}">
-    <span class="filename">{{ f }}</span>
-    
-    <div class="split-btn">
-        <a href="{{ url_for('main.serve_report', filename=f) }}" class="btn-main">VIEW</a>
-
-        <input type="checkbox" id="toggle-{{ loop.index }}" class="menu-checkbox" style="display: none;">
-        <label for="toggle-{{ loop.index }}" class="btn-arrow">▼</label>
-
-        <div class="dropdown-menu">
-            <a href="{{ url_for('main.serve_report', filename=f, dl='1') }}" class="dropdown-item">
-                <span class="icon-dl">⬇</span> Download
-            </a>
+            {% set parts = f.rsplit('.', 1) %}
+            {% if parts|length == 2 %}
+                {% set stem = parts[0] %}
+                {% set ext = parts[1]|lower %}
+                {% if stem not in ns.reports %}
+                    {% set _ = ns.reports.update({stem: {'stem': stem, 'files': [], 'html': None, 'pdf': None, 'csv': None}}) %}
+                {% endif %}
+                {% set _ = ns.reports[stem]['files'].append(f) %}
+                {% if ext == 'html' %}{% set _ = ns.reports[stem].update({'html': f}) %}{% endif %}
+                {% if ext == 'pdf' %}{% set _ = ns.reports[stem].update({'pdf': f}) %}{% endif %}
+                {% if ext == 'csv' %}{% set _ = ns.reports[stem].update({'csv': f}) %}{% endif %}
+            {% endif %}
+        {% endfor %}
+        
+        {% for report in ns.reports.values()|sort(attribute='stem', reverse=true) %}
+        <div class="file-item" id="file-row-{{ loop.index }}">
+            <span class="filename">{{ report.stem }}</span>
             
-            <a href="javascript:void(0);" 
-               class="dropdown-item delete-item" 
-               onclick="ajaxDelete('{{ f }}', 'file-row-{{ loop.index }}')">
-                <span class="icon-delete">🗑️ </span> Delete
-            </a>
+            <div class="split-btn">
+                {% if report.html %}
+                <a href="{{ url_for('main.serve_report', filename=report.html) }}" class="btn-main">VIEW</a>
+                {% else %}
+                <span class="btn-main disabled">VIEW</span>
+                {% endif %}
+
+                <input type="checkbox" id="toggle-{{ loop.index }}" class="menu-checkbox" style="display: none;">
+                <label for="toggle-{{ loop.index }}" class="btn-arrow">▼</label>
+
+                <div class="dropdown-menu">
+                    {% if report.pdf %}
+                    <a href="{{ url_for('main.serve_report', filename=report.pdf, dl='1') }}" class="dropdown-item">
+                        <svg class="icon-dl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download PDF
+                    </a>
+                    {% endif %}
+                    
+                    {% if report.csv %}
+                    <a href="{{ url_for('main.serve_report', filename=report.csv, dl='1') }}" class="dropdown-item">
+                        <svg class="icon-dl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download CSV
+                    </a>
+                    {% endif %}
+                    
+                    <a href="#" 
+                       class="dropdown-item delete-item"
+                       data-files='{{ report.files | tojson }}'
+                       data-row-id="file-row-{{ loop.index }}">
+                        <svg class="icon-delete" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Delete Report
+                    </a>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-  {% endfor %}
+        {% endfor %}
     {% else %}
-        <p style="text-align:center; color:#848e9c; margin-top: 40px;">No reports found yet</p>
+        <p class="empty-state">No reports found yet</p>
     {% endif %}
     
 </div>
-<!-- Interactive Buttons -->
+
 <script>
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('menu-checkbox') && e.target.checked) {
@@ -236,33 +328,60 @@
             });
         }
     });
- 
-  function ajaxDelete(filename, elementId) {
-    if (!confirm('Are you sure you want to Permanently delete this report?')) return;
 
-    fetch(`/reports/delete/${filename}`, {
-        method: 'GET',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => {
-        if (response.ok) {
-            const row = document.getElementById(elementId);
-            //  Slide out and fade
-            row.style.transition = 'all 0.3s ease';
-            row.style.opacity = '0';
-            row.style.transform = 'translateX(30px)';
-            
+    // Handle delete clicks via delegation, reading the file list out of
+    // data-files instead of inlining JSON into an onclick="" attribute
+    // (which breaks whenever the JSON's double quotes collide with the
+    // attribute's own double quotes).
+    document.addEventListener('click', function(e) {
+        const deleteLink = e.target.closest('.delete-item');
+        if (!deleteLink) return;
+
+        e.preventDefault();
+
+        let filenames;
+        try {
+            filenames = JSON.parse(deleteLink.dataset.files);
+        } catch (err) {
+            console.error('Could not parse file list for deletion:', err);
+            return;
+        }
+
+        ajaxDeleteGroup(filenames, deleteLink.dataset.rowId);
+    });
+
+    function ajaxDeleteGroup(filenames, elementId) {
+        if (!confirm('Are you sure you want to permanently delete this report?')) return;
+
+        const row = document.getElementById(elementId);
+        row.style.transition = 'all 0.3s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(30px)';
+
+        // Delete all files in the group sequentially
+        Promise.all(filenames.map(filename => 
+            fetch(`/reports/delete/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            }).then(res => {
+                if (!res.ok) throw new Error(`Delete failed for ${filename}: ${res.status}`);
+                return res;
+            })
+        )).then(() => {
             setTimeout(() => {
                 row.remove();
-                // If no reports left, refresh to show the "No reports" message
                 if (document.querySelectorAll('.file-item').length === 0) {
                     window.location.reload();
                 }
             }, 300);
-        } else {
+        }).catch(() => {
+            row.style.opacity = '1';
+            row.style.transform = 'translateX(0)';
             alert('Delete failed. Please try again.');
-        }
-    });
-  }
+        });
+    }
 </script>
 {% endblock %}
