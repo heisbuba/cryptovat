@@ -3,6 +3,7 @@
 
 {% block extra_css %}
 <script src="{{ url_for('static', filename='marked.min.js') }}"></script>
+<script src="{{ url_for('static', filename='purify.min.js') }}"></script>
 <style>
     :root { 
         /* Branding Colors */
@@ -85,7 +86,7 @@
     
     #rrr, #pnl { font-family: 'JetBrains Mono', monospace; }
 
-    /* Mode Switcher (Normal/Meme) */
+    /* Mode Switcher Normal/Meme */
     .mode-switcher { 
         display: flex; background: var(--bg-input); padding: 4px; 
         border-radius: 10px; border: 1px solid var(--border); margin-bottom: 20px;
@@ -127,6 +128,28 @@
     .tag-chip.neg-tag.selected { background: rgba(246, 70, 93, 0.2); border-color: var(--danger); color: white; }
     .tag-chip.pos-tag.selected { background: rgba(16, 185, 129, 0.2); border-color: var(--success); color: white; }
     .tag-add { border-style: dashed; color: var(--accent-blue); }
+
+    /* Custom tag delete handle */
+    .tag-chip { position: relative; }
+    .tag-del {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 6px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--text-dim);
+        cursor: pointer;
+        transition: 0.15s;
+        line-height: 1;
+    }
+    .tag-del:hover {
+        color: var(--danger);
+        background: rgba(246, 70, 93, 0.15);
+    }
 
     /* Form Actions */
     .action-row { display: flex; gap: 10px; margin-top: 25px; }
@@ -464,7 +487,7 @@
                     <label>Strategy / Setup</label>
                     <input type="text" name="strategy" id="strategy" list="strategies" placeholder="Setup name...">
                     <datalist id="strategies">
-                        <option value="VTMR Breakout">
+                        <option value="Breakout">
                         <option value="Fair Launch">
                         <option value="Support Retest">
                         <option value="Trend Continuation">
@@ -481,7 +504,7 @@
                 </div>
                 <div class="normal-only">
                     <label>Entry Price ($)</label>
-                    <input type="number" step="any" name="entry_price" id="entry_price" placeholder="0.00">
+                    <input type="number" step="any" name="entry_price" id="entry_price" placeholder="0.00" oninput="calculateRRR()">
                 </div>
                 <div>
                     <label>Entry Time</label>
@@ -490,11 +513,11 @@
 
                 <div>
                     <label id="lbl-sl" style="color: var(--danger);">Stop Loss</label>
-                    <input type="text" name="stop_loss" id="stop_loss" placeholder="Invalidation" oninput="calculateRRR()">
+                    <input type="text" name="stop_loss" id="stop_loss" placeholder="e.g. -8% or 1.15" oninput="calculateRRR()">
                 </div>
                 <div>
                     <label id="lbl-tp" style="color: var(--success);">Target</label>
-                    <input type="text" name="take_profit" id="take_profit" placeholder="Target" oninput="calculateRRR()">
+                    <input type="text" name="take_profit" id="take_profit" placeholder="e.g. 20% or 1.50" oninput="calculateRRR()">
                 </div>
                 <div>
                     <label>RRR</label>
@@ -610,7 +633,7 @@
                     <th>TP</th>
                     <th>RRR</th>
                     <th onclick="sortData('pnl')">PNL ↕</th>
-                    <th>EXIT TIMR</th>
+                    <th>EXIT TIME</th>
                     <th>REVIEW</th>
                     <th>TAGS</th>
                     <th>VIEW</th>
@@ -659,7 +682,7 @@
 <div id="aiRedirectModal" class="modal-overlay" onclick="if(event.target.id==='aiRedirectModal') this.style.display='none'">
     <div class="modal-content" style="text-align:center; border-color: var(--accent-orange);">
         <h3 class="modal-header" style="color: var(--accent-orange);">KEY MISSING</h3>
-        <p style="color:var(--text-dim; font-size:0.9rem;">You must configure your Gemini API Key to use the Auditor.</p>
+        <p style="color:var(--text-dim); font-size:0.9rem;">You must configure your Gemini API Key to use the Auditor.</p>
         <div class="modal-actions" style="grid-template-columns: 1fr 1fr;">
             <button class="btn-cancel" onclick="document.getElementById('aiRedirectModal').style.display='none'">CANCEL</button>
             <a href="{{ url_for('main.settings') }}" class="btn-modal btn-save" style="text-decoration:none; display:flex; align-items:center; justify-content:center;">SETTINGS</a>
@@ -743,22 +766,22 @@
             const review = String(trade.rules_followed) === "true" ? '<span style="color:var(--success)">Plan</span>' : '<span style="color:var(--danger)">Mistake</span>';
             
             const mcVal = currentMode === 'meme' ? (trade.entry_mcap || '-') : (trade.market_cap || '-');
-            const priceHtml = currentMode === 'normal' ? `<td>${trade.entry_price || '-'}</td>` : '';
+            const priceHtml = currentMode === 'normal' ? `<td>${escapeHtml(trade.entry_price || '-')}</td>` : '';
 
             tr.innerHTML = `
-                <td>${trade.trade_date}</td>
-                <td style="font-weight:bold; color:var(--accent-blue);">${trade.ticker}</td>
-                <td>${trade.strategy || '-'}</td>
-                <td>${mcVal}</td>
+                <td>${escapeHtml(trade.trade_date)}</td>
+                <td style="font-weight:bold; color:var(--accent-blue);">${escapeHtml(trade.ticker)}</td>
+                <td>${escapeHtml(trade.strategy || '-')}</td>
+                <td>${escapeHtml(mcVal)}</td>
                 ${priceHtml}
-                <td>${trade.entry_time || '-'}</td>
-                <td style="color:var(--danger)">${trade.stop_loss || '-'}</td>
-                <td style="color:var(--success)">${trade.take_profit || '-'}</td>
-                <td>${trade.rrr || '-'}</td>
-                <td class="${pnlClass}">${trade.pnl || '0'}</td>
-                <td>${trade.exit_time || '-'}</td>
+                <td>${escapeHtml(trade.entry_time || '-')}</td>
+                <td style="color:var(--danger)">${escapeHtml(trade.stop_loss || '-')}</td>
+                <td style="color:var(--success)">${escapeHtml(trade.take_profit || '-')}</td>
+                <td>${escapeHtml(trade.rrr || '-')}</td>
+                <td class="${pnlClass}">${escapeHtml(trade.pnl || '0')}</td>
+                <td>${escapeHtml(trade.exit_time || '-')}</td>
                 <td>${review}</td>
-                <td style="font-size:0.75rem;">${(trade.tags || []).join(', ')}</td>
+                <td style="font-size:0.75rem;">${escapeHtml((trade.tags || []).join(', '))}</td>
                 <td><button class="row-btn" onclick="toggleNotes('${trade.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> VIEW</button></td>
                 <td><button class="row-btn" onclick='editTrade(${JSON.stringify(trade).replace(/'/g, "&#39;")})'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> EDIT</button></td>
             `;
@@ -767,19 +790,51 @@
             const noteTr = document.createElement('tr');
             noteTr.id = `notes-${trade.id}`;
             noteTr.className = 'notes-row';
-            noteTr.innerHTML = `<td colspan="15" class="notes-content"><strong>NOTES:</strong><br>${trade.notes || 'No notes.'}</td>`;
+            noteTr.innerHTML = `<td colspan="15" class="notes-content"><strong>NOTES:</strong><br>${escapeHtml(trade.notes || 'No notes.')}</td>`;
             tbody.appendChild(noteTr);
         });
         renderPagination();
     }
 
     // --- Helper Functions ---
+    // Converts a SL/TP field into a "distance from entry" so risk and reward
+    // can be compared on the same scale, regardless of how the user typed it:
+    //   - "12%" or "-12%"  -> percentage move off entry price
+    //   - "1.35"           -> an absolute price -> distance = |entry - price|
+    function resolveDistance(raw, entry) {
+        if (!raw) return 0;
+        const isPercent = raw.includes('%');
+        const num = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+        if (isNaN(num)) return 0;
+        if (isPercent) return Math.abs(num);
+        if (!entry || entry <= 0) return 0; // need a reference price to convert an absolute price into a distance
+        return Math.abs((entry - num) / entry) * 100;
+    }
+
     function calculateRRR() {
-        if(currentMode === 'normal') return;
-        const sl = parseFloat(document.getElementById('stop_loss').value.replace(/[^0-9.]/g, ''));
-        const tpStr = document.getElementById('take_profit').value;
-        let tp = tpStr.toLowerCase().includes('x') ? (parseFloat(tpStr.replace(/[^0-9.]/g, '')) - 1) * 100 : parseFloat(tpStr.replace(/[^0-9.]/g, ''));
-        if(sl > 0 && tp > 0) document.getElementById('rrr').value = "1:" + (tp / sl).toFixed(1);
+        const slRaw = document.getElementById('stop_loss').value.trim();
+        const tpRaw = document.getElementById('take_profit').value.trim();
+        if (!slRaw || !tpRaw) return;
+
+        let risk, reward;
+
+        if (currentMode === 'normal') {
+            const entry = parseFloat(document.getElementById('entry_price').value);
+            risk = resolveDistance(slRaw, entry);
+            reward = resolveDistance(tpRaw, entry);
+        } else {
+            // Meme mode: no numeric entry price field, so SL/TP are treated as
+            // straight percentage moves; TP also accepts "3x" style multiples.
+            risk = parseFloat(slRaw.replace(/[^0-9.]/g, ''));
+            const tpLower = tpRaw.toLowerCase();
+            reward = tpLower.includes('x')
+                ? (parseFloat(tpLower.replace(/[^0-9.]/g, '')) - 1) * 100
+                : parseFloat(tpRaw.replace(/[^0-9.]/g, ''));
+        }
+
+        if (risk > 0 && reward > 0) {
+            document.getElementById('rrr').value = "1:" + (reward / risk).toFixed(2);
+        }
     }
 
     function populateTemporalFilters() {
@@ -805,15 +860,44 @@
 
     function toggleTag(el) { el.classList.toggle('selected'); }
 
+    // Shared helpers so preset chips, custom chips, and reloaded custom tags
+    // (via editTrade) all behave identically and stay deletable/readable.
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.innerText = str;
+        return d.innerHTML;
+    }
+
+    // Reads a chip's label text without the delete icon. Falls back to plain
+    // textContent for preset chips, which have no .tag-text span.
+    function getTagText(chip) {
+        const span = chip.querySelector('.tag-text');
+        return (span ? span.textContent : chip.textContent).trim();
+    }
+
+    function createTagChip(text, isPositive, selected) {
+        const div = document.createElement('div');
+        div.className = `tag-chip ${isPositive ? 'pos-tag' : 'neg-tag'}${selected ? ' selected' : ''}`;
+        div.dataset.custom = "true";
+        div.innerHTML = `<span class="tag-text">${escapeHtml(text)}</span><span class="tag-del" onclick="event.stopPropagation(); removeCustomTag(this);" title="Remove tag">&times;</span>`;
+        div.querySelector('.tag-text').onclick = (e) => {
+            e.stopPropagation();
+            toggleTag(div);
+        };
+        return div;
+    }
+
+    function removeCustomTag(delBtn) {
+        const chip = delBtn.closest('.tag-chip');
+        if (chip) chip.remove();
+    }
+
     function addNewTag(containerId) {
         const val = prompt("New tag:");
-        if(!val) return;
-        const div = document.createElement('div');
-        div.className = `tag-chip ${containerId === 'tags-positive' ? 'pos-tag' : 'neg-tag'} selected`;
-        div.innerText = val;
-        div.onclick = () => toggleTag(div);
+        if(!val || !val.trim()) return;
         const grid = document.querySelector(`#${containerId} .tag-grid`);
-        grid.insertBefore(div, grid.lastElementChild);
+        const chip = createTagChip(val.trim(), containerId === 'tags-positive', true);
+        grid.insertBefore(chip, grid.lastElementChild);
     }
 
     function updateStats(trades) {
@@ -857,18 +941,27 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setMode(data.mode || 'normal');
         document.getElementById('trade_id').value = data.id || '';
-        document.getElementById('trade_date').value = data.trade_date;
-        document.getElementById('ticker').value = data.ticker;
-        document.getElementById('strategy').value = data.strategy;
-        document.getElementById('pnl').value = data.pnl;
-        document.getElementById('notes').value = data.notes;
-        document.getElementById('entry_time').value = data.entry_time;
-        document.getElementById('exit_time').value = data.exit_time;
+        document.getElementById('trade_date').value = data.trade_date || '';
+        document.getElementById('ticker').value = data.ticker || '';
+        document.getElementById('strategy').value = data.strategy || '';
+        document.getElementById('pnl').value = data.pnl || '';
+        document.getElementById('notes').value = data.notes || '';
+        document.getElementById('entry_time').value = data.entry_time || '';
+        document.getElementById('exit_time').value = data.exit_time || '';
+        // Bug fix: stop_loss/take_profit were never restored here, so saving
+        // an edit silently wiped already-synced SL/TP data on every update.
+        document.getElementById('stop_loss').value = data.stop_loss || '';
+        document.getElementById('take_profit').value = data.take_profit || '';
         document.getElementById('rrr').value = data.rrr || '';
-        if(data.mode === 'meme') document.getElementById('entry_mcap').value = data.entry_mcap || '';
-        else {
+        if(data.mode === 'meme') {
+            document.getElementById('entry_mcap').value = data.entry_mcap || '';
+            // Clear normal-mode fields so stale hidden values aren't sent in the payload
+            document.getElementById('entry_price').value = '';
+            document.getElementById('market_cap').value = '';
+        } else {
             document.getElementById('entry_price').value = data.entry_price || '';
             document.getElementById('market_cap').value = data.market_cap || '';
+            document.getElementById('entry_mcap').value = '';
         }
         const followed = String(data.rules_followed) === "true";
         document.getElementById('rulesToggle').checked = followed;
@@ -878,12 +971,10 @@
             const grid = document.querySelector(`#${followed ? 'tags-positive' : 'tags-negative'} .tag-grid`);
             data.tags.forEach(t => {
                 let found = false;
-                grid.querySelectorAll('.tag-chip').forEach(c => { if(c.innerText === t) { c.classList.add('selected'); found = true; } });
+                grid.querySelectorAll('.tag-chip').forEach(c => { if(getTagText(c) === t) { c.classList.add('selected'); found = true; } });
                 if(!found) {
-                    const div = document.createElement('div');
-                    div.className = `tag-chip ${followed ? 'pos-tag' : 'neg-tag'} selected`;
-                    div.innerText = t; div.onclick = () => toggleTag(div);
-                    grid.insertBefore(div, grid.lastElementChild);
+                    const chip = createTagChip(t, followed, true);
+                    grid.insertBefore(chip, grid.lastElementChild);
                 }
             });
         }
@@ -908,7 +999,7 @@
         }
 
         const followed = document.getElementById('rulesToggle').checked;
-        const tags = Array.from(document.querySelectorAll(`#${followed ? 'tags-positive' : 'tags-negative'} .tag-chip.selected`)).map(el => el.innerText);
+        const tags = Array.from(document.querySelectorAll(`#${followed ? 'tags-positive' : 'tags-negative'} .tag-chip.selected`)).map(el => getTagText(el));
         
         btn.disabled = true; 
         btn.innerHTML = `<span>SYNCING...</span>`;
@@ -920,7 +1011,10 @@
         try {
             const res = await fetch("{{ url_for('tasks.save_journal_trade') }}", { 
                 method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }, 
                 body: JSON.stringify(payload) 
             });
             const data = await res.json();
@@ -1088,8 +1182,14 @@ function getCSVString(trades) {
         const row = document.createElement('div');
         row.className = `msg-row ${type}`;
         
-        // Parsing: Markdown -> HTML
-        const formattedText = type === 'ai' ? marked.parse(text) : text;
+        // Parsing: Markdown -> HTML, then sanitize before ever touching the
+        // DOM. The AI response can be influenced by data the user pasted
+        // into trade notes/strategy fields (prompt injection), and marked.js
+        // does not sanitize raw HTML on its own — so untrusted markup must
+        // be stripped here rather than trusted implicitly.
+        const formattedText = type === 'ai'
+            ? DOMPurify.sanitize(marked.parse(text))
+            : escapeHtml(text);
         
         row.innerHTML = `<div class="chat-bubble ${type}">${formattedText}</div>`;
         chat.appendChild(row);

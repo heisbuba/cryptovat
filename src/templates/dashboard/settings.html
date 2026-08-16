@@ -128,7 +128,7 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="{{ category }}-message">✅ {{ message }}</div>
+          <div class="{{ category }}-message">{{ '✅' if category == 'success' else '⚠️' }} {{ message }}</div>
         {% endfor %}
       {% endif %}
     {% endwith %}
@@ -145,6 +145,7 @@
     </div>
 
     <form action="{{ url_for('main.save_config') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="source" value="settings">
         <div class="card">
             <h2 style="color: var(--accent-green);">API Configuration</h2>
@@ -167,6 +168,7 @@
     </form>
 
   <form action="{{ url_for('main.save_ai_key') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="source" value="settings">
     <div class="card">
         <h2 style="color: var(--accent-green);">AI Auditor Config</h2>
@@ -192,6 +194,7 @@
 
     {% if drive_linked %}
         <form action="{{ url_for('tasks.google_disconnect') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-red">
                 DISCONNECT G-DRIVE AUTH
             </button>
@@ -221,7 +224,10 @@
         </div>
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
-            <a href="{{ url_for('main.factory_reset') }}" class="btn-delete" style="margin-top:0; display:flex; align-items:center; justify-content:center; text-decoration:none;">YES, DELETE IT</a>
+            <form action="{{ url_for('main.factory_reset') }}" method="POST" style="margin:0; width:100%;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-delete" style="margin-top:0; width:100%; display:flex; align-items:center; justify-content:center;">YES, DELETE IT</button>
+            </form>
         </div>
     </div>
 </div>

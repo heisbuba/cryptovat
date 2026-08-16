@@ -1,0 +1,920 @@
+{% extends "base.html" %}
+{% block title %}Token Screener - QuantVAT{% endblock %}
+{% block description %}Screen the top 1000 coins by volume, market cap, VTMR and price velocity.{% endblock %}
+{% block og_title %}Token Screener - QuantVAT{% endblock %}
+{% block og_description %}Screen the top 1000 coins by volume, market cap, VTMR and price velocity.{% endblock %}
+{% block keywords %}crypto screener, vtmr screener, market cap filter, volume screener, quantvat{% endblock %}
+
+{% block extra_css %}
+<style>
+/* --- Navigation --- */
+.filter-nav-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 5px 20px 15px 5px;
+    margin-top: 10px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, black 98%, transparent 100%);
+    mask-image: linear-gradient(to right, black 98%, transparent 100%);
+}
+
+.filter-nav-container::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 8px 14px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: 0.2s;
+    text-decoration: none;
+    flex: 0 0 auto;
+}
+
+.nav-item:hover {
+    border-color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+/* --- Toolbar --- */
+.screener-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0 15px;
+}
+
+.screener-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.screener-stats .stat-label {
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.screener-stats .stat-value { color: #fff; font-family: 'JetBrains Mono', monospace; }
+.screener-stats .stat-value.matched-ok { color: var(--accent-green); }
+.screener-stats .stat-value.matched-empty { color: var(--accent-red); }
+.screener-stats .divider { color: var(--border); }
+
+.toolbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.icon-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 12px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: 0.2s;
+}
+
+.icon-pill:hover { color: #fff; border-color: var(--accent-green); }
+.icon-pill svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* --- Filter Modal --- */
+.filter-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 4px 2px 16px;
+}
+
+.filter-checkbox-row input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--accent-green); flex-shrink: 0; }
+.filter-checkbox-row label { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+.filter-checkbox-row .sub-hint { display: block; font-size: 0.65rem; color: #5a636e; margin-top: 2px; }
+
+/* --- Sort Pills (mobile) --- */
+.sort-pills {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-bottom: 12px;
+    padding-bottom: 2px;
+}
+.sort-pills::-webkit-scrollbar { display: none; }
+
+.sort-pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.sort-pill.active { border-color: var(--accent-green); color: var(--accent-green); }
+.sort-pill .arrow { color: inherit; font-size: 0.65rem; }
+
+/* --- Percent coloring (shared by table + cards) --- */
+.pct-pos { color: var(--accent-green); }
+.pct-neg { color: var(--accent-red); }
+.pct-neutral { color: var(--text-dim); }
+
+.vtmr-high { color: var(--accent-green); font-weight: 800; }
+.vtmr-mid  { color: var(--accent-orange); font-weight: 700; }
+.vtmr-low  { color: var(--text-dim); }
+.vtmr-none { color: #5a636e; }
+
+/* --- Mobile Card List --- */
+.token-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: 0.15s;
+}
+.token-card:active { background: rgba(255,255,255,0.03); }
+.token-card.large-cap { border-left: 3px solid var(--accent-green); background: rgba(16, 185, 129, 0.03); }
+
+.token-card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.token-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.token-identity img { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
+.token-symbol { font-weight: 800; color: #fff; font-size: 0.9rem; }
+.token-name { font-size: 0.7rem; color: var(--text-dim); display: block; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.token-card-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.watchlist-btn { background: none; border: none; padding: 4px; cursor: pointer; display: flex; line-height: 0; }
+.watchlist-btn svg { width: 16px; height: 16px; color: #5a636e; transition: 0.15s; }
+.watchlist-btn[data-starred="true"] svg { color: var(--accent-orange); }
+.watchlist-btn:hover svg { color: var(--text-dim); }
+
+.token-card-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 0.85rem;
+}
+.token-card-row .col-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+.token-card-row .col-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; }
+.token-card-row.align-right { text-align: right; }
+
+.token-card-footer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+}
+.token-card-footer .col-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+.token-card-footer .col-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 700; }
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--bg-card);
+    border: 1px dashed var(--border);
+    border-radius: 16px;
+}
+.empty-state p { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 8px; }
+.empty-state a { color: var(--accent-green); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; text-decoration: none; }
+
+.hidden { display: none !important; }
+
+/* --- Full-width page override --- */
+.container.wide {
+    max-width: 1360px;
+}
+@media (max-width: 1400px) {
+    .container.wide { max-width: 96vw; }
+}
+
+/* --- Modal --- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.modal-overlay.is-active {
+    display: flex;
+}
+
+.modal-content {
+    background: #151a1e;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    animation: modalPopIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes modalPopIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    margin: 0 0 20px 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 12px;
+    margin-bottom: 20px;
+}
+
+.filter-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.filter-field label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.filter-field input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0b0e11;
+    border: 1px solid var(--border);
+    color: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+}
+
+.modal-actions {
+    display: flex !important;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    margin-top: 10px;
+}
+
+.btn-modal {
+    flex: 1;
+    padding: 12px 5px;
+    font-size: 0.8rem;
+    border-radius: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.btn-save {
+    background: var(--accent-green);
+    color: #000;
+    border: none;
+}
+
+.btn-reset {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--accent-red) !important;
+    color: var(--accent-red);
+}
+
+/* --- Mobile Pagination --- */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 6px;
+}
+.page-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 9px 16px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.page-btn:hover:not(:disabled) { color: #fff; border-color: var(--accent-green); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.page-label { font-size: 0.7rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+/* --- Desktop Table --- */
+.screener-table-wrap {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow-x: auto;
+}
+
+.screener-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+.screener-table thead { background: rgba(0,0,0,0.4); }
+.screener-table th {
+    padding: 14px 18px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    font-weight: 800;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+}
+.screener-table th.sortable { cursor: pointer; user-select: none; }
+.screener-table th.sortable:hover { color: #fff; }
+.screener-table th.align-right, .screener-table td.align-right { text-align: right; }
+.screener-table td { padding: 12px 18px; border-bottom: 1px solid rgba(43,49,57,0.6); }
+.screener-table tbody tr { cursor: pointer; transition: background 0.15s; }
+.screener-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.screener-table tbody tr.large-cap { background: rgba(16, 185, 129, 0.03); }
+.screener-table tbody tr.large-cap td:first-child { border-left: 3px solid var(--accent-green); }
+.screener-table .asset-cell { display: flex; align-items: center; gap: 8px; }
+.screener-table .asset-cell img { width: 20px; height: 20px; border-radius: 50%; }
+.screener-table .asset-symbol { font-weight: 800; color: #fff; }
+.screener-table .asset-name { color: var(--text-dim); font-size: 0.75rem; margin-left: 4px; }
+.screener-table td.mono { font-family: 'JetBrains Mono', monospace; }
+.screener-table .watchlist-cell { width: 36px; }
+
+/* --- Token Detail Modal --- */
+.token-detail-modal {
+    max-width: 440px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+}
+.sheet-header-left { display: flex; align-items: center; gap: 12px; }
+.sheet-header-left img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); }
+.sheet-symbol { font-weight: 900; color: #fff; font-size: 1.15rem; }
+.sheet-name { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; display: block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-price { color: var(--accent-green); font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin-top: 2px; display: block; }
+.sheet-close {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1.15rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.15s;
+}
+.sheet-close:hover { border-color: var(--accent-red); color: var(--accent-red); }
+
+.sheet-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border); }
+.sheet-stats-grid > div { padding: 16px; text-align: left; border-right: 1px solid rgba(43,49,57,0.5); }
+.sheet-stats-grid > div:last-child { border-right: none; }
+.sheet-stats-grid p.label { font-size: 0.6rem; text-transform: uppercase; color: var(--text-dim); font-weight: 800; letter-spacing: 0.05em; margin-bottom: 4px; }
+.sheet-stats-grid p.value { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; font-size: 0.85rem; }
+
+.sheet-velocity-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+.sheet-velocity-grid > div { padding: 14px 6px; text-align: center; }
+.sheet-velocity-grid p.label { font-size: 0.6rem; text-transform: uppercase; color: var(--text-dim); font-weight: 800; margin-bottom: 4px; }
+.sheet-velocity-grid p.value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.8rem; }
+
+.sheet-actions { display: flex; gap: 10px; padding: 18px 22px 22px; }
+.sheet-action-btn {
+    flex: 1;
+    text-align: center;
+    padding: 13px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    transition: 0.2s;
+}
+.sheet-action-btn.cg { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; }
+.sheet-action-btn.cg:hover { border-color: var(--text-main); }
+.sheet-action-btn.tv { background: rgba(59,130,246,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); }
+.sheet-action-btn.tv:hover { background: rgba(59,130,246,0.18); }
+
+@media (min-width: 860px) {
+    .mobile-only { display: none !important; }
+    .screener-table-wrap { display: block; }
+}
+@media (max-width: 859px) {
+    .desktop-only { display: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container wide">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="padding:15px; margin-bottom:20px; border-radius:8px; font-weight:bold; background:{{ 'rgba(14,203,129,0.15)' if category == 'success' else 'rgba(246,70,93,0.15)' }}; color:{{ '#0ecb81' if category == 'success' else '#f6465d' }}; border:1px solid {{ '#0ecb81' if category == 'success' else '#f6465d' }};">
+              {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="filter-nav-container">
+        <button class="nav-item" onclick="toggleModal('screenerFilterModal')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/></svg>
+            Filters
+        </button>
+        <a href="{{ url_for('main.home') }}" class="nav-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"></path><path d="M5 10v10a1 1 0 001 1h4a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h4a1 1 0 001-1V10"></path></svg>
+            Dashboard
+        </a>
+    </div>
+
+    <div class="screener-toolbar">
+        <div class="screener-stats">
+            <div><span class="stat-label">Tokens </span><span class="stat-value">{{ total }}</span></div>
+            <span class="divider">|</span>
+            <div><span class="stat-label">Matched </span><span class="stat-value {{ 'matched-ok' if tokens|length > 0 else 'matched-empty' }}">{{ tokens|length }}</span></div>
+        </div>
+        <div class="toolbar-actions">
+            <a href="{{ url_for('tasks.token_screener_export_csv',
+                min_24h=filters.min_24h,
+                min_7d=filters.min_7d,
+                min_30d=filters.min_30d,
+                min_1y=filters.min_1y,
+                min_mcap=filters.min_mcap,
+                min_vtmr=filters.min_vtmr,
+                include_no_1y='1' if include_no_1y else None) }}"
+               class="icon-pill" title="Export filtered results to CSV">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+            </a>
+            <a href="{{ url_for('tasks.token_screener_refresh') }}" class="icon-pill" title="Refresh data">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Sync
+            </a>
+        </div>
+    </div>
+
+    <!-- Mobile sort pills -->
+    <div class="sort-pills mobile-only" id="sortPills">
+        {% set sort_cols = [('vtmr','VTMR'),('p24h','24h'),('p7d','7d'),('p30d','1m'),('p1y','1y'),('mcap','Mcap'),('price','Price'),('volume','Vol')] %}
+        {% for col, label in sort_cols %}
+        <button class="sort-pill {{ 'active' if col == 'vtmr' }}" data-col="{{ col }}" onclick="sortTokens('{{ col }}')">
+            {{ label }} <span class="arrow">{% if col == 'vtmr' %}↓{% endif %}</span>
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Mobile card list -->
+    <div class="mobile-only" id="cardList">
+        {% for t in tokens %}
+        <div class="token-card {{ 'large-cap' if t.large_cap }}" onclick="openTokenSheet(this)"
+             data-id="{{ t.id }}" data-symbol="{{ t.symbol|upper }}" data-name="{{ t.name }}"
+             data-image="{{ t.image or '' }}" data-price="{{ t.fmt_price }}" data-mcap="{{ t.fmt_mcap }}"
+             data-volume="{{ t.fmt_volume }}" data-vtmr="{{ t.vtmr_display }}" data-vtmr-class="{{ t.vtmr_class }}"
+             data-p24h="{{ t.fmt_24h }}" data-cls24h="{{ t.cls_24h }}" data-p7d="{{ t.fmt_7d }}" data-cls7d="{{ t.cls_7d }}"
+             data-p30d="{{ t.fmt_30d }}" data-cls30d="{{ t.cls_30d }}" data-p1y="{{ t.fmt_1y }}" data-cls1y="{{ t.cls_1y }}"
+             data-sort-price="{{ t.current_price or 0 }}" data-sort-mcap="{{ t.market_cap or 0 }}" data-sort-volume="{{ t.total_volume or 0 }}"
+             data-sort-vtmr="{{ t.vtmr_raw }}" data-sort-p24h="{{ t.price_change_percentage_24h_in_currency or 0 }}"
+             data-sort-p7d="{{ t.price_change_percentage_7d_in_currency or 0 }}" data-sort-p30d="{{ t.price_change_percentage_30d_in_currency or 0 }}"
+             data-sort-p1y="{{ t.price_change_percentage_1y_in_currency or 0 }}">
+            <div class="token-card-top">
+                <div class="token-identity">
+                    {% if t.image %}<img src="{{ t.image }}" loading="lazy">{% endif %}
+                    <div>
+                        <span class="token-symbol">{{ t.symbol|upper }}</span>
+                        <span class="token-name">{{ t.name }}</span>
+                    </div>
+                </div>
+                <div class="token-card-actions">
+                    <button class="watchlist-btn" onclick="event.stopPropagation(); toggleWatchlist(this, '{{ t.id }}')"
+                            data-starred="{{ 'true' if t.starred else 'false' }}"
+                            title="{{ 'Remove from watchlist' if t.starred else 'Add to watchlist' }}">
+                        <svg fill="{{ 'currentColor' if t.starred else 'none' }}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                        </svg>
+                    </button>
+                    <span class="{{ t.cls_24h }}" style="font-weight:800; font-size:0.85rem; font-family:'JetBrains Mono',monospace;">{{ t.fmt_24h }}</span>
+                </div>
+            </div>
+            <div class="token-card-row">
+                <div><p class="col-label">Price</p><p class="col-value">{{ t.fmt_price }}</p></div>
+                <div class="align-right"><p class="col-label">Mcap</p><p class="col-value">{{ t.fmt_mcap }}</p></div>
+            </div>
+            <div class="token-card-row">
+                <div><p class="col-label">24h Vol</p><p class="col-value" style="color:var(--text-dim);">{{ t.fmt_volume }}</p></div>
+                <div class="align-right"><p class="col-label">VTMR</p><p class="col-value {{ t.vtmr_class }}">{{ t.vtmr_display }}</p></div>
+            </div>
+            <div class="token-card-footer">
+                <div><p class="col-label">7d</p><p class="col-value {{ t.cls_7d }}">{{ t.fmt_7d }}</p></div>
+                <div><p class="col-label">1m</p><p class="col-value {{ t.cls_30d }}">{{ t.fmt_30d }}</p></div>
+                <div><p class="col-label">1y</p><p class="col-value {{ t.cls_1y }}">{{ t.fmt_1y }}</p></div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No assets match your filters.</p>
+            <a href="{{ url_for('tasks.token_screener_reset') }}">Clear All</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" id="pagination" style="display:none;">
+        <button class="page-btn" id="pgPrev" onclick="changePage(-1)">&larr; Prev</button>
+        <span class="page-label" id="pgLabel"></span>
+        <button class="page-btn" id="pgNext" onclick="changePage(1)">Next &rarr;</button>
+    </div>
+
+    <!-- Desktop table -->
+    <div class="screener-table-wrap desktop-only">
+        <table class="screener-table">
+            <thead>
+                <tr id="sortHeader">
+                    <th>Asset</th>
+                    <th class="watchlist-cell"></th>
+                    <th class="sortable align-right" data-col="price" onclick="sortTokens('price')">Price <span class="sort-arrow"></span></th>
+                    <th class="sortable align-right" data-col="mcap" onclick="sortTokens('mcap')">Mcap <span class="sort-arrow"></span></th>
+                    <th class="sortable align-right" data-col="volume" onclick="sortTokens('volume')">Volume <span class="sort-arrow"></span></th>
+                    <th class="sortable align-right" data-col="vtmr" onclick="sortTokens('vtmr')">VTMR <span class="sort-arrow" style="color:var(--accent-green);">↓</span></th>
+                    <th class="sortable align-right" data-col="p24h" onclick="sortTokens('p24h')">24h % <span class="sort-arrow"></span></th>
+                    <th class="sortable align-right" data-col="p7d" onclick="sortTokens('p7d')">7d % <span class="sort-arrow"></span></th>
+                    <th class="sortable align-right" data-col="p30d" onclick="sortTokens('p30d')">1m % <span class="sort-arrow"></span></th>
+                    <th class="sortable align-right" data-col="p1y" onclick="sortTokens('p1y')">1y % <span class="sort-arrow"></span></th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                {% for t in tokens %}
+                <tr class="sort-row {{ 'large-cap' if t.large_cap }}" onclick="openTokenSheet(this)"
+                    data-id="{{ t.id }}" data-symbol="{{ t.symbol|upper }}" data-name="{{ t.name }}"
+                    data-image="{{ t.image or '' }}" data-price="{{ t.fmt_price }}" data-mcap="{{ t.fmt_mcap }}"
+                    data-volume="{{ t.fmt_volume }}" data-vtmr="{{ t.vtmr_display }}" data-vtmr-class="{{ t.vtmr_class }}"
+                    data-p24h="{{ t.fmt_24h }}" data-cls24h="{{ t.cls_24h }}" data-p7d="{{ t.fmt_7d }}" data-cls7d="{{ t.cls_7d }}"
+                    data-p30d="{{ t.fmt_30d }}" data-cls30d="{{ t.cls_30d }}" data-p1y="{{ t.fmt_1y }}" data-cls1y="{{ t.cls_1y }}"
+                    data-sort-price="{{ t.current_price or 0 }}" data-sort-mcap="{{ t.market_cap or 0 }}" data-sort-volume="{{ t.total_volume or 0 }}"
+                    data-sort-vtmr="{{ t.vtmr_raw }}" data-sort-p24h="{{ t.price_change_percentage_24h_in_currency or 0 }}"
+                    data-sort-p7d="{{ t.price_change_percentage_7d_in_currency or 0 }}" data-sort-p30d="{{ t.price_change_percentage_30d_in_currency or 0 }}"
+                    data-sort-p1y="{{ t.price_change_percentage_1y_in_currency or 0 }}">
+                    <td>
+                        <div class="asset-cell">
+                            {% if t.image %}<img src="{{ t.image }}" loading="lazy">{% endif %}
+                            <span class="asset-symbol">{{ t.symbol|upper }}</span>
+                            <span class="asset-name">{{ t.name }}</span>
+                        </div>
+                    </td>
+                    <td class="watchlist-cell" onclick="event.stopPropagation()">
+                        <button class="watchlist-btn" onclick="toggleWatchlist(this, '{{ t.id }}')"
+                                data-starred="{{ 'true' if t.starred else 'false' }}"
+                                title="{{ 'Remove from watchlist' if t.starred else 'Add to watchlist' }}">
+                            <svg fill="{{ 'currentColor' if t.starred else 'none' }}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                            </svg>
+                        </button>
+                    </td>
+                    <td class="align-right mono" style="font-weight:700; color:#fff;">{{ t.fmt_price }}</td>
+                    <td class="align-right mono" style="color:var(--text-dim);">{{ t.fmt_mcap }}</td>
+                    <td class="align-right mono" style="color:var(--text-dim);">{{ t.fmt_volume }}</td>
+                    <td class="align-right mono {{ t.vtmr_class }}">{{ t.vtmr_display }}</td>
+                    <td class="align-right mono {{ t.cls_24h }}" style="font-weight:700;">{{ t.fmt_24h }}</td>
+                    <td class="align-right mono {{ t.cls_7d }}">{{ t.fmt_7d }}</td>
+                    <td class="align-right mono {{ t.cls_30d }}">{{ t.fmt_30d }}</td>
+                    <td class="align-right mono {{ t.cls_1y }}" style="font-weight:700;">{{ t.fmt_1y }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="10" style="text-align:center; padding:60px 20px; color:var(--text-dim);">No assets match your filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div id="screenerFilterModal" class="modal-overlay" onclick="handleOverlayClick(event, 'screenerFilterModal')">
+    <div class="modal-content">
+        <h3 class="modal-header">Token Screener Filters</h3>
+        <form action="{{ url_for('main.token_screener') }}" method="GET">
+            <div class="filter-grid">
+                <div class="filter-field">
+                    <label>Min 24h %</label>
+                    <input type="number" name="min_24h" step="0.1" value="{{ filters.min_24h }}" placeholder="0.0">
+                </div>
+                <div class="filter-field">
+                    <label>Min 7d %</label>
+                    <input type="number" name="min_7d" step="0.1" value="{{ filters.min_7d }}" placeholder="0.0">
+                </div>
+                <div class="filter-field">
+                    <label>Min 1m %</label>
+                    <input type="number" name="min_30d" step="0.1" value="{{ filters.min_30d }}" placeholder="0.0">
+                </div>
+                <div class="filter-field">
+                    <label>Min 1y %</label>
+                    <input type="number" name="min_1y" step="0.1" value="{{ filters.min_1y }}" placeholder="0.0">
+                </div>
+                <div class="filter-field">
+                    <label>Min Mkt Cap</label>
+                    <input type="text" name="min_mcap" value="{{ filters.min_mcap }}" placeholder="e.g. 5m">
+                </div>
+                <div class="filter-field">
+                    <label>Min VTMR</label>
+                    <input type="number" name="min_vtmr" step="0.01" value="{{ filters.min_vtmr }}" placeholder="0.0">
+                </div>
+            </div>
+
+            <div class="filter-checkbox-row">
+                <input type="checkbox" id="include_no_1y" name="include_no_1y" value="1" {% if include_no_1y %}checked{% endif %}>
+                <label for="include_no_1y">
+                    Include tokens with no 1y history
+                    <span class="sub-hint">Uncheck to require 1y+ age (excludes newer listings)</span>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <a href="{{ url_for('tasks.token_screener_reset') }}" class="btn-modal btn-reset" style="text-decoration:none; display:flex; align-items:center; justify-content:center;">RESET</a>
+                <button type="submit" class="btn-modal btn-save">APPLY</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Token Detail Modal -->
+<div id="tokenSheetOverlay" class="modal-overlay" onclick="handleSheetOverlayClick(event)">
+    <div class="modal-content token-detail-modal" id="tokenSheetPanel" onclick="event.stopPropagation()">
+        <div class="sheet-header">
+            <div class="sheet-header-left">
+                <img id="tsImage" src="" alt="" class="hidden">
+                <div>
+                    <div><span id="tsSymbol" class="sheet-symbol"></span> <span id="tsName" class="sheet-name"></span></div>
+                    <span id="tsPrice" class="sheet-price"></span>
+                </div>
+            </div>
+            <button class="sheet-close" onclick="closeTokenSheet()" aria-label="Close">&times;</button>
+        </div>
+        <div class="sheet-stats-grid">
+            <div><p class="label">Mkt Cap</p><p class="value" id="tsMcap"></p></div>
+            <div><p class="label">24h Vol</p><p class="value" id="tsVolume"></p></div>
+            <div><p class="label">VTMR</p><p class="value" id="tsVtmr"></p></div>
+        </div>
+        <div class="sheet-velocity-grid">
+            <div><p class="label">24h</p><p class="value" id="ts24h"></p></div>
+            <div><p class="label">7d</p><p class="value" id="ts7d"></p></div>
+            <div><p class="label">1m</p><p class="value" id="ts30d"></p></div>
+            <div><p class="label">1y</p><p class="value" id="ts1y"></p></div>
+        </div>
+        <div class="sheet-actions">
+            <a id="tsCoinGecko" href="#" target="_blank" rel="noopener" class="sheet-action-btn cg">CoinGecko</a>
+            <a id="tsTradingView" href="#" target="_blank" rel="noopener" class="sheet-action-btn tv">TradingView</a>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Modal helpers ──
+function toggleModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.toggle('is-active');
+}
+function handleOverlayClick(e, id) {
+    if (e.target.id === id) toggleModal(id);
+}
+// Unified Escape handler for both modals
+window.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    const filterModal = document.getElementById('screenerFilterModal');
+    const tokenModal  = document.getElementById('tokenSheetOverlay');
+    if (tokenModal && tokenModal.classList.contains('is-active')) {
+        closeTokenSheet();
+    } else if (filterModal && filterModal.classList.contains('is-active')) {
+        toggleModal('screenerFilterModal');
+    }
+});
+
+// ── Token Detail Modal ──
+function openTokenSheet(el) {
+    const d = el.dataset;
+    const img = document.getElementById('tsImage');
+    if (d.image) { img.src = d.image; img.classList.remove('hidden'); }
+    else { img.classList.add('hidden'); }
+
+    document.getElementById('tsSymbol').textContent = d.symbol;
+    document.getElementById('tsName').textContent   = d.name;
+    document.getElementById('tsPrice').textContent  = d.price;
+    document.getElementById('tsMcap').textContent   = d.mcap;
+    document.getElementById('tsVolume').textContent = d.volume;
+
+    const vtmrEl = document.getElementById('tsVtmr');
+    vtmrEl.textContent = d.vtmr;
+    vtmrEl.className = 'value ' + (d.vtmrClass || '');
+
+    const map = [['ts24h','p24h','cls24h'], ['ts7d','p7d','cls7d'], ['ts30d','p30d','cls30d'], ['ts1y','p1y','cls1y']];
+    map.forEach(([elId, valKey, clsKey]) => {
+        const node = document.getElementById(elId);
+        node.textContent = d[valKey];
+        node.className = 'value ' + (d[clsKey] || '');
+    });
+
+    document.getElementById('tsCoinGecko').href   = `https://www.coingecko.com/en/coins/${d.id}`;
+    document.getElementById('tsTradingView').href = `https://www.tradingview.com/symbols/${d.symbol}USDT/`;
+
+    document.getElementById('tokenSheetOverlay').classList.add('is-active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTokenSheet() {
+    document.getElementById('tokenSheetOverlay').classList.remove('is-active');
+    document.body.style.overflow = '';
+}
+
+function handleSheetOverlayClick(e) {
+    if (e.target.id === 'tokenSheetOverlay') closeTokenSheet();
+}
+
+// ── Watchlist toggle ────
+async function toggleWatchlist(btn, coinId) {
+    const svg = btn.querySelector('svg');
+    const isStarred = btn.dataset.starred === 'true';
+    const nowStarred = !isStarred;
+    const rowEl = btn.closest('[data-id]');
+
+    btn.dataset.starred = nowStarred ? 'true' : 'false';
+    btn.title = nowStarred ? 'Remove from watchlist' : 'Add to watchlist';
+    svg.setAttribute('fill', nowStarred ? 'currentColor' : 'none');
+
+    try {
+        const res = await fetch('{{ url_for("tasks.toggle_watchlist") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' 
+            },
+            body: JSON.stringify({
+                coin_id: coinId,
+                action: nowStarred ? 'add' : 'remove',
+                symbol: rowEl ? rowEl.dataset.symbol : '',
+                name: rowEl ? rowEl.dataset.name : '',
+                price: rowEl ? rowEl.dataset.price : '--',
+                vtmr: rowEl ? rowEl.dataset.vtmr : '--',
+                mcap: rowEl ? rowEl.dataset.mcap : '--',
+                chg_24h: rowEl ? rowEl.dataset.p24h : '--',
+                chg_7d: rowEl ? rowEl.dataset.p7d : '--',
+                chg_30d: rowEl ? rowEl.dataset.p30d : '--',
+                chg_1y: rowEl ? rowEl.dataset.p1y : '--',
+            }),
+        });
+        if (!res.ok) throw new Error('Request failed');
+    } catch (err) {
+        btn.dataset.starred = isStarred ? 'true' : 'false';
+        btn.title = isStarred ? 'Remove from watchlist' : 'Add to watchlist';
+        svg.setAttribute('fill', isStarred ? 'currentColor' : 'none');
+        console.error('Watchlist toggle failed:', err);
+    }
+}
+
+// ── Sort ───
+const _sort = { col: 'vtmr', asc: false };
+
+function sortTokens(col) {
+    _sort.asc = (_sort.col === col) ? !_sort.asc : false;
+    _sort.col = col;
+
+    const attrKey = ('sort-' + col).replace(/-([a-z0-9])/g, (_, ch) => ch.toUpperCase());
+    function numVal(el) { return parseFloat(el.dataset[attrKey]) || 0; }
+    function cmp(a, b) { return _sort.asc ? numVal(a) - numVal(b) : numVal(b) - numVal(a); }
+
+    const tbody = document.getElementById('tableBody');
+    if (tbody) Array.from(tbody.querySelectorAll('tr.sort-row')).sort(cmp).forEach(r => tbody.appendChild(r));
+
+    const cardList = document.getElementById('cardList');
+    if (cardList) Array.from(cardList.querySelectorAll('.token-card')).sort(cmp).forEach(c => cardList.appendChild(c));
+
+    document.querySelectorAll('#sortHeader th').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (!arrow) return;
+        const isActive = th.dataset.col === col;
+        arrow.textContent = isActive ? (_sort.asc ? '↑' : '↓') : '';
+        arrow.style.color = isActive ? 'var(--accent-green)' : 'var(--text-dim)';
+    });
+
+    document.querySelectorAll('.sort-pill').forEach(btn => {
+        const isActive = btn.dataset.col === col;
+        btn.classList.toggle('active', isActive);
+        const arrow = btn.querySelector('.arrow');
+        if (arrow) arrow.textContent = isActive ? (_sort.asc ? '↑' : '↓') : '';
+    });
+
+    _currentPage = 1;
+    applyPage();
+}
+
+// ── Pagination
+const PAGE_SIZE = 100;
+let _currentPage = 1;
+
+function getAllCards() {
+    return Array.from(document.querySelectorAll('#cardList .token-card'));
+}
+function getAllRows() {
+    return Array.from(document.querySelectorAll('#tableBody tr.sort-row'));
+}
+
+function _isDesktop() {
+    return window.matchMedia('(min-width: 860px)').matches;
+}
+
+function applyPage() {
+    const cards = getAllCards();
+    const rows = getAllRows();
+    const total = _isDesktop() ? rows.length : cards.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pagination = document.getElementById('pagination');
+
+    _currentPage = Math.max(1, Math.min(_currentPage, totalPages));
+
+    if (total <= PAGE_SIZE) {
+        cards.forEach(c => c.style.display = '');
+        rows.forEach(r => r.style.display = '');
+        pagination.style.display = 'none';
+        return;
+    }
+
+    const start = (_currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    cards.forEach((c, i) => c.style.display = (i >= start && i < end) ? '' : 'none');
+    rows.forEach((r, i) => r.style.display = (i >= start && i < end) ? '' : 'none');
+
+    document.getElementById('pgLabel').textContent = `${_currentPage} / ${totalPages}`;
+    document.getElementById('pgPrev').disabled = _currentPage === 1;
+    document.getElementById('pgNext').disabled = _currentPage === totalPages;
+    pagination.style.display = 'flex';
+}
+
+function changePage(delta) {
+    _currentPage += delta;
+    applyPage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.addEventListener('DOMContentLoaded', applyPage);
+window.addEventListener('resize', () => { applyPage(); });
+</script>
+{% endblock %}
