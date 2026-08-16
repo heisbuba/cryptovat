@@ -1,20 +1,20 @@
 # Use the official Python image
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# 1. Install system dependencies
-TunRUN apt-get update && apt-get install -y \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Python dependencies
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 3. CONFIGURE PLAYWRIGHT (The Critical Fix)
+# CONFIGURE PLAYWRIGHT
 # Set a global path for browsers so both Root (builder) and User (runner) can find them
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
@@ -23,10 +23,10 @@ RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
 RUN playwright install-deps chromium
 RUN playwright install chromium
 
-# 4. Copy Application Code
+# Copy Application Code
 COPY . .
 
-# 5. Create and Switch to Non-Root User
+# Create and Switch to Non-Root User
 RUN useradd -m -u 1000 user
 
 # Ensure the user has permissions to access the browsers
@@ -38,4 +38,5 @@ ENV HOME=/home/user \
 
 # 6. Run the App
 EXPOSE 7860
-CMD ["python", "app.py"]
+# Single worker
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "1", "--threads", "8", "--timeout", "120", "app:app"]
