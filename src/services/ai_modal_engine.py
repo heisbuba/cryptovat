@@ -3,6 +3,10 @@ from google.genai import types
 import traceback
 from ..config import db, get_user_keys
 
+# Cap stored/replayed conversation turns so Firestore docs and the model's
+# context window don't grow without bound over a long chat session.
+MAX_HISTORY_MESSAGES = 40  # ~20 user/model turn pairs
+
 class AiModalEngine:
     @staticmethod
     def _get_client(api_key):
@@ -20,7 +24,7 @@ class AiModalEngine:
             
             # Parsona
             instruction = f"""
-            PARSONA:
+            PERSONA:
             You are the QuantVAT AI Trading Journal Auditor, a senior Risk Manager and Trading Psychologist with 50 years trading experience like a Market Wizard. 
             Speak with veteran authority. Tone is blunt but constructive.
 
@@ -76,7 +80,11 @@ class AiModalEngine:
                 return "Error: API Key missing."
 
             client = AiModalEngine._get_client(api_key)
-            
+
+            # Keep only the most recent turns when replaying to the model
+            if len(history) > MAX_HISTORY_MESSAGES:
+                history = history[-MAX_HISTORY_MESSAGES:]
+
             # Robust mapping
             contents = []
             for h in history:
@@ -90,7 +98,7 @@ class AiModalEngine:
             contents.append(types.Content(role="user", parts=[types.Part.from_text(text=prompt)]))
 
             # Re-injects Persona
-            instruction = f"PARSONA: QuantVAT AI Trading Journal Auditor. Senior Risk Manager.\nDATA:\n{context}"
+            instruction = f"PERSONA: QuantVAT AI Trading Journal Auditor. Senior Risk Manager.\nDATA:\n{context}"
 
             response = client.models.generate_content(
                 model='gemini-3-flash-preview',
@@ -100,9 +108,11 @@ class AiModalEngine:
                 )
             )
             
-            # Append new turn and sync to Firestore 
+            # Append new turn and sync to Firestore
             history.append({"role": "user", "parts": [{"text": prompt}]})
             history.append({"role": "model", "parts": [{"text": response.text}]})
+            if len(history) > MAX_HISTORY_MESSAGES:
+                history = history[-MAX_HISTORY_MESSAGES:]
             db.collection('users').document(uid).set({"ai_history": history}, merge=True)
             
             return response.text

@@ -1,13 +1,12 @@
 import re
-import datetime
+import html
 import pandas as pd
 from typing import List, Optional, Tuple
 from pathlib import Path
 
 # Import our modular components
-from ..state import get_user_temp_dir
+from ..state import get_user_temp_dir, update_progress, get_pending_files, clear_pending_file
 from .utils import now_str, convert_html_to_pdf, cleanup_after_analysis
-from .futures_engine import PDFParser
 
 # --- Constants for Reporting ---
 ORIGINAL_HTML_STYLE = """
@@ -83,52 +82,40 @@ class SignalEngine:
             return "-"
 
 
-class FileScanner:
-    """Locates the latest Spot and Futures data files in the USER directory."""
-    @staticmethod
-    def find_files(user_id) -> Tuple[Optional[Path], Optional[Path]]:
-        spot_file: Optional[Path] = None
-        futures_file: Optional[Path] = None
-        
-        user_dir = get_user_temp_dir(user_id)
-        if not user_dir.exists():
-            return None, None
-
-        # Get today's date for filtering
-        today = datetime.datetime.now().date()
-        
-        # Filter for today's files only
-        today_files = []
-        for f in user_dir.iterdir():
-            if f.is_file():
-                try:
-                    file_time = datetime.datetime.fromtimestamp(f.stat().st_mtime)
-                    if file_time.date() == today: 
-                        today_files.append(f)
-                except Exception:
-                    continue
-        
-        if not today_files:
-            return None, None
-            
-        # Sort by modification time (newest first)
-        files = sorted(today_files, key=lambda x: x.stat().st_mtime, reverse=True)
-
-        for f in files:
-            name = f.name.lower()
-            if not futures_file and f.suffix == ".pdf" and "futures" in name:
-                futures_file = f
-            elif not spot_file and f.suffix in [".csv", ".html"] and "spot" in name:
-                spot_file = f
-            
-            if spot_file and futures_file:
-                break
-                
-        return spot_file, futures_file
 
 class DataProcessor:
     """Handles Dataframe loading, merging, and HTML generation."""
     
+    _CAP_SUFFIX_MULT = {'k': 1e3, 'm': 1e6, 'b': 1e9, 't': 1e12}
+
+    @staticmethod
+    def _parse_cap(value) -> Optional[float]:
+        """Parses a market cap string like '$67.2k', '21.57M', 'n/a' into a raw USD float."""
+        if value is None:
+            return None
+        s = str(value).strip().replace('$', '').replace(',', '')
+        if s == '' or s.lower() == 'n/a':
+            return None
+        suffix = s[-1].lower() if s and s[-1].lower() in DataProcessor._CAP_SUFFIX_MULT else None
+        try:
+            if suffix:
+                return float(s[:-1]) * DataProcessor._CAP_SUFFIX_MULT[suffix]
+            return float(s)
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _caps_compatible(spot_cap, fut_cap, max_ratio: float = 5.0) -> bool:
+        """
+        Guards against cross-market ticker collisions
+        """
+        spot_val = DataProcessor._parse_cap(spot_cap)
+        fut_val = DataProcessor._parse_cap(fut_cap)
+        if spot_val is None or fut_val is None or spot_val <= 0 or fut_val <= 0:
+            return True
+        ratio = max(spot_val, fut_val) / min(spot_val, fut_val)
+        return ratio <= max_ratio
+
     @staticmethod
     def load_spot(path: Path) -> pd.DataFrame:
         print(f"   Parsing Spot File: {path.name}")
@@ -181,7 +168,17 @@ class DataProcessor:
             df_display[m] = ""
         df_display = df_display[df_cols]
         df_display.columns = headers
-    
+
+        # These two columns carry pre-rendered, program-generated HTML
+        # (colored <span> badges from SignalEngine) and must stay raw.
+        # Every other column may contain ticker/market-cap/volume text
+        # sourced from an uploaded file or an external API, so it must be
+        # escaped before being placed into the report HTML.
+        SAFE_HTML_HEADERS = {"OISS", "Funding Rate"}
+        for col in df_display.columns:
+            if col not in SAFE_HTML_HEADERS:
+                df_display[col] = df_display[col].apply(lambda v: html.escape(str(v)))
+
         table_html = df_display.to_html(index=False, classes='table', escape=False)
         return f'<div class="table-container"><h2>{title}</h2>{table_html}</div>'
 
@@ -205,28 +202,43 @@ class DataProcessor:
         valid_futures = futures_df.copy()
         try:
             if 'vtmr' in valid_futures.columns:
-                valid_futures = valid_futures[valid_futures['vtmr'] >= 0.50]
                 valid_futures['vtmr_display'] = valid_futures['vtmr'].apply(lambda x: f"{x:.2f}x")
         except Exception as e:
-            print(f"   Futures high-quality filtering error: {e}")
+            print(f"   Futures display formatting error: {e}")
             valid_futures['vtmr_display'] = valid_futures['vtmr']
 
         # Suffix-based merge to prevent blank column mapping issues
         merged = pd.merge(spot_df, valid_futures, on='ticker', how='inner', suffixes=('_spot', '_fut'))
+
+        # Guard against ticker collisions: same symbol, unrelated tokens.
+        if not merged.empty and 'market_cap_spot' in merged.columns and 'market_cap_fut' in merged.columns:
+            cap_ok = merged.apply(
+                lambda r: DataProcessor._caps_compatible(r.get('market_cap_spot'), r.get('market_cap_fut')),
+                axis=1
+            )
+            mismatched = merged[~cap_ok]
+            if not mismatched.empty:
+                print(f"   ⚠️  Excluded {len(mismatched)} ticker collision(s) from cross-market merge "
+                      f"(market cap mismatch, likely different tokens sharing a symbol): "
+                      f"{sorted(mismatched['ticker'].unique().tolist())}")
+            merged = merged[cap_ok].copy()
+
+        matched_tickers = set(merged['ticker'])
+
         if 'vtmr_fut' in merged.columns:
             merged = merged.sort_values('vtmr_fut', ascending=False)
-        
-        futures_only = valid_futures[~valid_futures['ticker'].isin(spot_df['ticker'])].copy()
+
+        futures_only = valid_futures[~valid_futures['ticker'].isin(matched_tickers)].copy()
         if 'vtmr' in futures_only.columns:
             futures_only = futures_only.sort_values('vtmr', ascending=False)
-        
-        spot_only = spot_df[~spot_df['ticker'].isin(merged['ticker'])].copy()
+
+        spot_only = spot_df[~spot_df['ticker'].isin(matched_tickers)].copy()
         
         if 'vtmr' in spot_only.columns:
             try:
                 spot_only = spot_only.copy()
                 spot_only.loc[:, 'sort_val'] = spot_only['vtmr'].astype(str).str.replace('x', '', case=False).astype(float)
-                spot_only = spot_only[spot_only['sort_val'] >= 0.50].sort_values('sort_val', ascending=False).drop(columns=['sort_val'])
+                spot_only = spot_only.sort_values('sort_val', ascending=False).drop(columns=['sort_val'])
             except Exception as e:
                 print(f"   Spot filtering error: {e}")
         
@@ -300,32 +312,74 @@ class DataProcessor:
 
 def crypto_analysis_v4(user_keys, user_id) -> None:
     """Main execution flow for Advanced Analysis."""
-    print("   ADVANCED QUANT CRYPTO VOLUME ANALYSIS")
-    print("   Scanning for Futures PDF and Spot CSV/HTML files")
-    print("   " + "=" * 50)
+    print("   ADVANCED CROSS-MARKET ANALYSIS")
+    print("   Scanning for Futures CSV and Spot HTML files")
+    print("   " + "=" * 40)
+    update_progress(user_id, 10, "Locating Spot and Futures files...", "active")
     
     # Find Files
-    spot_file, futures_file = FileScanner.find_files(user_id)
+    pending = get_pending_files(user_id)
+    spot_file = pending.get("spot")
+    futures_file = pending.get("futures")
     if not spot_file or not futures_file:
         print("   Required files not found.")
         raise FileNotFoundError("   You Need CoinAlyze Futures PDF and Spot Market Data. Kindly Generate Spot Data And Upload Futures PDF First.")
     
-    # Parse Files
-    futures_df = PDFParser.extract(futures_file)
+    # Load Files
+    update_progress(user_id, 40, "Loading Futures and Spot data...", "active")
     spot_df = DataProcessor.load_spot(spot_file)
+    try:
+        futures_df = pd.read_csv(futures_file, dtype={'ticker': str}, encoding='utf-8')
+        print(f"   Futures CSV Retrieved: {futures_file.name}")
+    except Exception as e:
+        print(f"   Futures CSV Error: {e}")
+        futures_df = pd.DataFrame()
+
+    # Apply user-configured Futures VTMR filter
+    def safe_float(val, default):
+        try:
+            if val is None or str(val).strip() == "":
+                return default
+            return float(val)
+        except (ValueError, TypeError):
+            return default
+
+    settings = user_keys.get("engine_settings", {}) if user_keys else {}
+    MIN_F_VTMR = safe_float(settings.get('min_f_vtmr'), 0.5)
+    MAX_F_VTMR = safe_float(settings.get('max_f_vtmr'), 399.0)
+
+    if not futures_df.empty and 'vtmr' in futures_df.columns:
+        before_count = len(futures_df)
+        futures_df = futures_df[(futures_df['vtmr'] >= MIN_F_VTMR) & (futures_df['vtmr'] <= MAX_F_VTMR)]
+        print(f" Extracted {len(futures_df)} tokens out of {before_count} with VTMR filter applied")
+        print("   " + "=" * 40)
     
+    update_progress(user_id, 65, "Merging cross-market signals...", "active")
     html_content = DataProcessor.generate_html_report(futures_df, spot_df)
-    if html_content:
-        # Create PDF
-        pdf_path = convert_html_to_pdf(html_content, user_id)
-        
-        if pdf_path:
-            print(f"   PDF saved: {pdf_path}")
-            print("   🧹 Cleaning up source files after analysis...")
-            cleanup_after_analysis(spot_file, futures_file)
-            print("   📊 Analysis completed! Source files cleaned up.")
-        else:
-            print("   PDF conversion failed! Check API Key")
-    else:
+    if not html_content:
         print("   No data to generate report")
-    print("   Advanced Analysis completed!")
+        raise ValueError("No matching data between spot and futures files — check both sources.")
+
+    # Create PDF
+    update_progress(user_id, 85, "Compiling PDF report...", "active")
+    pdf_path = convert_html_to_pdf(html_content, user_id)
+
+    if not pdf_path:
+        print("   PDF conversion failed! Check API Key")
+        raise RuntimeError("PDF conversion failed. Check your PDF-rendering API key/configuration.")
+
+    # Save HTML companion file alongside the PDF
+    try:
+        pdf_file = Path(pdf_path)
+        html_file = pdf_file.with_suffix('.html')
+        html_file.write_text(html_content, encoding='utf-8')
+        print(f"   HTML saved: {html_file}")
+    except Exception as e:
+        print(f"   Warning: Could not save HTML companion file: {e}")
+
+    print(f"   PDF saved: {pdf_path}")
+    print("   🧹 Cleaning up source files after analysis...")
+    cleanup_after_analysis(spot_file, futures_file)
+    clear_pending_file(user_id, "spot")
+    clear_pending_file(user_id, "futures")
+    print("   📊  Analysis completed! Source files cleaned up.")

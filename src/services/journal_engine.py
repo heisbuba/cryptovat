@@ -6,8 +6,10 @@ import uuid
 import datetime
 import pandas as pd
 from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 from ..config import get_user_keys, update_user_keys
 
@@ -17,8 +19,12 @@ SCOPES = ['https://www.googleapis.com/auth/drive.appdata']
 class JournalEngine:
     @staticmethod
     def get_flow():
-        # Allow OAuth over HTTP for local dev or specific hosting environments
-        os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+        # Only relax oauthlib's HTTPS enforcement when the configured redirect
+        redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "")
+        if redirect_uri.startswith("http://"):
+            os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+        else:
+            os.environ.pop('OAUTHLIB_INSECURE_TRANSPORT', None)
         return Flow.from_client_config(
             client_config={
                 "web": {
@@ -39,10 +45,21 @@ class JournalEngine:
         token_json = user_data.get("google_token_json")
         if not token_json: return None
         try:
-            return Credentials.from_authorized_user_info(json.loads(token_json))
+            creds = Credentials.from_authorized_user_info(json.loads(token_json))
         except Exception as e:
             print(f"⚠️ Token Load Error: {e}")
             return None
+
+        # The stored token snapshot is only ever written once
+        if creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(GoogleAuthRequest())
+                update_user_keys(uid, {"google_token_json": creds.to_json()})
+            except Exception as e:
+                print(f"⚠️ Token Refresh Error: {e}")
+                return None
+
+        return creds
 
     @staticmethod
     def get_drive_service(creds):
@@ -61,6 +78,12 @@ class JournalEngine:
                 status, done = downloader.next_chunk()
             content = fh.getvalue().decode('utf-8')
             return json.loads(content) if content else []
+        except HttpError as e:
+            if e.resp.status == 404:
+                # Cached file_id points at a file that no longer exists
+                raise
+            print(f"⚠️ Journal Load Error: {e}")
+            return []
         except Exception as e:
             print(f"⚠️ Journal Load Error: {e}")
             return []
@@ -76,8 +99,13 @@ class JournalEngine:
         service.files().update(fileId=file_id, media_body=media).execute()
 
     @staticmethod
-    def initialize_journal(service):
-        # Find existing journal or create a new one in hidden app data folder
+    def initialize_journal(service, uid=None):
+        # Find existing journal or create a new one in hidden app data folder.
+        if uid:
+            cached_id = get_user_keys(uid).get("journal_drive_file_id")
+            if cached_id:
+                return cached_id
+
         try:
             response = service.files().list(
                 q="name='journal.json' and 'appDataFolder' in parents",
@@ -87,16 +115,21 @@ class JournalEngine:
             ).execute()
             
             files = response.get('files', [])
-            if files: return files[0]['id']
-            
-            file_metadata = {'name': 'journal.json', 'parents': ['appDataFolder']}
-            media = MediaIoBaseUpload(
-                io.BytesIO(json.dumps([]).encode('utf-8')), 
-                mimetype='application/json',
-                resumable=True
-            )
-            file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-            return file.get('id')
+            if files:
+                file_id = files[0]['id']
+            else:
+                file_metadata = {'name': 'journal.json', 'parents': ['appDataFolder']}
+                media = MediaIoBaseUpload(
+                    io.BytesIO(json.dumps([]).encode('utf-8')), 
+                    mimetype='application/json',
+                    resumable=True
+                )
+                file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+                file_id = file.get('id')
+
+            if uid and file_id:
+                update_user_keys(uid, {"journal_drive_file_id": file_id})
+            return file_id
         except Exception as e:
             print(f"⚠️ Journal Init Error: {e}")
             raise e
