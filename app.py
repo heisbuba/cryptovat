@@ -9,11 +9,10 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 # Security headers for PWA reliability
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 if __name__ == "__main__":
     print(f"\n{'='*60}")
-    print("QUANTITATIVE CRYPTO VOLUME ANALYSIS TOOLKIT - v4.2.0")
+    print("QUANTITATIVE CRYPTO VOLUME ANALYSIS TOOLKIT - v4.7.0")
     print(f"{'='*60}")
     
     # Debug=False is correct for production PWA deployment
