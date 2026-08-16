@@ -1,12 +1,14 @@
 import os
 from datetime import datetime
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_from_directory, make_response, jsonify
+from googleapiclient.errors import HttpError
 
-from ..config import get_user_keys, update_user_keys, is_user_setup_complete, db, get_global_stats, increment_global_stat
+from ..config import get_user_keys, update_user_keys, is_user_setup_complete, db, get_global_stats, increment_global_stat, firestore
 from ..state import USER_PROGRESS, get_user_temp_dir, TEMP_DIR
 from .auth import login_required
 from ..services.journal_engine import JournalEngine
 from ..services.ai_modal_engine import AiModalEngine
+from ..services import screener_engine
 
 main_bp = Blueprint('main', __name__)
 
@@ -14,11 +16,14 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route("/")
 def index():
-    # Redirect authenticated users to home unless no_redirect is set
     if session.get('user_id') and not request.args.get('no_redirect'):
-        return redirect(url_for('main.home'))
+        response = redirect(url_for('main.home'))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
     
-    return render_template("index.html")
+    response = make_response(render_template("index.html"))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @main_bp.route("/dashboard")
 @login_required
@@ -27,14 +32,14 @@ def home():
     if not is_user_setup_complete(uid):
         return redirect(url_for('main.setup'))
 
-    user_data = get_user_keys(uid)
+    user_data = get_user_keys(uid) or {}  
     filters = user_data.get("engine_settings", {}) 
 
-    # Admin access check via environment UID list
     admin_id = os.environ.get('ADMIN_UID', '')
     is_admin = uid == admin_id or uid in admin_id.split(',')
 
     return render_template("dashboard/home.html", is_admin=is_admin, filters=filters)
+    
 
 # --- Configuration & Setup --- #
 
@@ -43,7 +48,7 @@ def home():
 def setup():
     uid = session['user_id']
     current_keys = get_user_keys(uid)
-    return render_template("dashboard/setup.html",
+    return render_template("includes/partials/setup.html",
         cmc=current_keys.get("CMC_API_KEY", ""),
         cg=current_keys.get("COINGECKO_API_KEY", ""),
         lcw=current_keys.get("LIVECOINWATCH_API_KEY", ""),
@@ -71,6 +76,8 @@ def settings():
 def save_config():
     uid = session['user_id']
     source = request.form.get("source", "setup")
+    is_autosave = request.form.get("autosave") == "1"
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     keys = {
         "CMC_API_KEY": request.form.get("cmc_key", "").strip(),
@@ -80,9 +87,32 @@ def save_config():
     }
     
     if not update_user_keys(uid, keys):
+        if is_ajax:
+            return jsonify({"status": "error", "message": "Could not save configuration."}), 500
+        
         flash("System Error: Could not save configuration.", "error")
-        dest = 'main.settings' if source == 'settings' else 'main.setup'
-        return redirect(url_for(dest))
+        # Preserve typed inputs by re-rendering the form
+        if source == 'settings':
+            current_keys = get_user_keys(uid)
+            drive_linked = "google_refresh_token" in current_keys
+            return render_template("dashboard/settings.html",
+                cmc=keys["CMC_API_KEY"],
+                cg=keys["COINGECKO_API_KEY"],
+                lcw=keys["LIVECOINWATCH_API_KEY"],
+                vtmr=keys["COINALYZE_VTMR_URL"],
+                drive_linked=drive_linked,
+                user_settings=current_keys
+            )
+        return render_template("includes/partials/setup.html",
+            cmc=keys["CMC_API_KEY"],
+            cg=keys["COINGECKO_API_KEY"],
+            lcw=keys["LIVECOINWATCH_API_KEY"],
+            vtmr=keys["COINALYZE_VTMR_URL"]
+        )
+
+    # For AJAX auto-save, just return JSON 
+    if is_ajax:
+        return jsonify({"status": "success", "message": "Saved"})
 
     if source == 'settings':
         flash("Configuration updated successfully!", "success")
@@ -96,7 +126,7 @@ def save_config():
     flash("Progress saved! Please enter the remaining keys to continue.", "success")
     return redirect(url_for('main.setup'))
 
-@main_bp.route("/factory-reset")
+@main_bp.route("/factory-reset", methods=["POST"])
 @login_required
 def factory_reset():
     # Clear all API configuration keys for user
@@ -114,7 +144,12 @@ def factory_reset():
 @main_bp.route("/help")
 def help_page():
     setup_status = is_user_setup_complete(session['user_id']) if 'user_id' in session else False
-    return render_template("dashboard/help.html", is_setup_complete=setup_status)
+    return render_template("pages/help.html", is_setup_complete=setup_status)
+    
+@main_bp.route("/privacy-policy")
+def privacy_policy():
+    setup_status = is_user_setup_complete(session['user_id']) if 'user_id' in session else False
+    return render_template("pages/privacy-policy.html", is_setup_complete=setup_status)
 
 @main_bp.route("/deep-diver")
 @login_required
@@ -124,11 +159,79 @@ def deep_diver():
         return redirect(url_for('main.setup'))
     return render_template("dashboard/deep_diver.html")
 
+# --- Token Screener --- #
+
+@main_bp.route("/screener")
+@login_required
+def token_screener():
+    uid = session['user_id']
+    if not is_user_setup_complete(uid):
+        return redirect(url_for('main.setup'))
+
+    user_data = get_user_keys(uid)
+    api_key = user_data.get("COINGECKO_API_KEY", "")
+    watchlist = user_data.get('watchlist', [])
+    watched_ids = {item.get('coin_id') for item in watchlist}
+
+    # Filter form is a GET submit — presence of any DEFAULT_FILTERS keys
+    for key in screener_engine.DEFAULT_FILTERS:
+        if key in request.args:
+            session[f"{screener_engine.SESSION_PREFIX}{key}"] = request.args[key]
+
+    form_submitted = any(k in request.args for k in screener_engine.DEFAULT_FILTERS)
+    if form_submitted:
+        session[f"{screener_engine.SESSION_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}"] = (
+            "1" if screener_engine.INCLUDE_NO_1Y_KEY in request.args else "0"
+        )
+        
+        profile_updates = {
+            f"{screener_engine.PROFILE_PREFIX}{key}": request.args[key]
+            for key in screener_engine.DEFAULT_FILTERS if key in request.args
+        }
+        profile_updates[f"{screener_engine.PROFILE_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}"] = (
+            "1" if screener_engine.INCLUDE_NO_1Y_KEY in request.args else "0"
+        )
+        update_user_keys(uid, profile_updates)
+        flash("Filters applied and saved.", "success")
+
+    filters = {
+        k: screener_engine.resolve_filter(k, session, user_data)
+        for k in screener_engine.DEFAULT_FILTERS
+    }
+    thresholds = {k: screener_engine.parse_threshold(k, filters[k]) for k in screener_engine.DEFAULT_FILTERS}
+
+    include_no_1y_raw = session.get(
+        f"{screener_engine.SESSION_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}",
+        user_data.get(f"{screener_engine.PROFILE_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}", screener_engine.INCLUDE_NO_1Y_DEFAULT),
+    )
+    include_no_1y = str(include_no_1y_raw) == "1"
+
+    raw_tokens = screener_engine.get_screener_data(api_key)
+    tokens = screener_engine.filter_tokens(raw_tokens, thresholds, include_no_1y)
+
+    for t in tokens:
+        t["starred"] = t.get("id", "") in watched_ids
+
+    tokens.sort(key=lambda x: x.get("vtmr_raw", 0.0), reverse=True)
+
+    return render_template(
+        "dashboard/screener.html",
+        tokens=tokens,
+        total=len(raw_tokens),
+        filters=filters,
+        include_no_1y=include_no_1y,
+    )
+
 # --- Administration --- #
 
 @main_bp.route("/admin")
 @login_required
 def admin_dashboard():
+    uid = session['user_id']
+    admin_id = os.environ.get('ADMIN_UID', '')
+    is_admin = uid == admin_id or uid in admin_id.split(',')
+    if not is_admin:
+        return redirect(url_for('main.home'))
     # Query user count from Firestore
     try:
         if db:
@@ -172,7 +275,7 @@ def reports_list():
     report_files = []
     # Collect all generated artifacts for listing
     if user_dir.exists():
-        for pattern in ['*.html', '*.pdf']:
+        for pattern in ['*.html', '*.pdf', '*.csv']:
             for f in user_dir.glob(pattern):
                 if f.is_file():
                     report_files.append(f.name)
@@ -187,7 +290,12 @@ def serve_report(filename):
     is_download = request.args.get('dl') == '1'
     increment_global_stat("report_views")
     
-    mimetype = 'application/pdf' if filename.lower().endswith('.pdf') else None
+    if filename.lower().endswith('.pdf'):
+        mimetype = 'application/pdf'
+    elif filename.lower().endswith('.csv'):
+        mimetype = 'text/csv'
+    else:
+        mimetype = None
     
     return send_from_directory(
         str(user_dir), 
@@ -196,12 +304,27 @@ def serve_report(filename):
         mimetype=mimetype 
     )
 
-@main_bp.route("/reports/delete/<path:filename>")
+@main_bp.route("/reports/delete/<path:filename>", methods=["POST"])
 @login_required
 def delete_report(filename):
     uid = session['user_id']
-    user_dir = get_user_temp_dir(uid)
-    file_path = user_dir / filename
+    user_dir = get_user_temp_dir(uid).resolve()
+
+    # Reject any filename that isn't a plain, single-segment name
+    if not filename or filename != os.path.basename(filename) or filename in ('.', '..'):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return 'Not Found', 404
+        flash("File not found.", "error")
+        return redirect(url_for('main.reports_list'))
+
+    file_path = (user_dir / filename).resolve()
+
+    # Defense in depth: even after the basename check above, then verify
+    if user_dir not in file_path.parents:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return 'Not Found', 404
+        flash("File not found.", "error")
+        return redirect(url_for('main.reports_list'))
 
     if file_path.exists() and file_path.is_file():
         try:
@@ -238,8 +361,14 @@ def trading_journal():
             creds = JournalEngine.get_creds(uid)
             if creds:
                 service = JournalEngine.get_drive_service(creds)
-                file_id = JournalEngine.initialize_journal(service)
-                journal_history = JournalEngine.load_journal(service, file_id)
+                file_id = JournalEngine.initialize_journal(service, uid=uid)
+                try:
+                    journal_history = JournalEngine.load_journal(service, file_id)
+                except HttpError:
+                    # Cached file_id was stale 
+                    update_user_keys(uid, {"journal_drive_file_id": firestore.DELETE_FIELD})
+                    file_id = JournalEngine.initialize_journal(service, uid=uid)
+                    journal_history = JournalEngine.load_journal(service, file_id)
                 stats = JournalEngine.calculate_stats(journal_history)
                 journal_history.reverse() 
         except Exception as e:
@@ -344,7 +473,8 @@ def sitemap():
         ('main.index', '1.0', 'daily'),
         ('auth.login', '0.8', 'monthly'),
         ('auth.register', '0.8', 'monthly'),
-        ('main.help_page', '0.7', 'weekly')
+        ('main.help_page', '0.7', 'weekly'),
+        ('main.privacy_policy', '0.7', 'weekly')
     ]
 
     for endpoint, priority, freq in public_endpoints:
@@ -367,12 +497,27 @@ def robots():
     lines = [
         "User-agent: *",
         "Allow: /",
-        "Disallow: /dashboard",  # Keeps private areas out of search results
+        "Disallow: /dashboard", 
         "Disallow: /api/",
         f"Sitemap: {sitemap_url}"
     ]
     return make_response("\n".join(lines), 200, {'Content-Type': 'text/plain'})
 
-@main_bp.route('/google9d1c3419ef02840f.html')
+@main_bp.route('/googlea10aea7d2db78dd5.html')
 def google_verify():
-    return render_template('includes/verifikasi/google9d1c3419ef02840f.html')
+    return send_from_directory('static', 'googlea10aea7d2db78dd5.html')
+
+@main_bp.route('/watchlist')
+@login_required
+def watchlist_page():
+    uid = session.get('user_id')
+    user_data = get_user_keys(uid)
+    if not isinstance(user_data, dict):
+        user_data = {}
+    watchlist = user_data.get('watchlist', [])
+    try:
+        watchlist = sorted(watchlist, key=lambda x: x.get('added_at', ""), reverse=True)
+    except Exception as e:
+        print(f"Sort Error: {e}")
+        watchlist = []
+    return render_template('reports/watchlist.html', watchlist=watchlist)

@@ -1,10 +1,41 @@
 import functools
 import requests
+import time
+from collections import defaultdict
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 
 from ..config import FIREBASE_WEB_API_KEY
 
 auth_bp = Blueprint('auth', __name__)
+
+# --- Rate Limiter ---
+LOGIN_ATTEMPTS = defaultdict(list)
+MAX_ATTEMPTS = 5
+WINDOW_SECONDS = 300  # 5 minutes
+
+# Periodically drop IPs with no attempts left in the window so this dict
+# doesn't grow forever across the process lifetime.
+_SWEEP_INTERVAL = 600  # 10 minutes
+_last_sweep = [0.0]
+
+def _sweep_login_attempts(now: float) -> None:
+    if now - _last_sweep[0] < _SWEEP_INTERVAL:
+        return
+    for ip in list(LOGIN_ATTEMPTS.keys()):
+        LOGIN_ATTEMPTS[ip] = [t for t in LOGIN_ATTEMPTS[ip] if now - t < WINDOW_SECONDS]
+        if not LOGIN_ATTEMPTS[ip]:
+            del LOGIN_ATTEMPTS[ip]
+    _last_sweep[0] = now
+
+def is_rate_limited(ip: str) -> bool:
+    now = time.time()
+    _sweep_login_attempts(now)
+    # Clean up old attempts outside the window
+    LOGIN_ATTEMPTS[ip] = [t for t in LOGIN_ATTEMPTS[ip] if now - t < WINDOW_SECONDS]
+    if len(LOGIN_ATTEMPTS[ip]) >= MAX_ATTEMPTS:
+        return True
+    LOGIN_ATTEMPTS[ip].append(now)
+    return False
 
 # --- Helper Decorator ---
 def login_required(f):
@@ -23,6 +54,8 @@ def login():
         return redirect(url_for('main.home'))
 
     if request.method == "POST":
+        if is_rate_limited(request.remote_addr):
+            return render_template("auth/register.html", mode="register", error="Too many attempts. Please wait 5 minutes.")
         email = request.form.get("email")
         password = request.form.get("password")
         
@@ -39,8 +72,15 @@ def login():
                 # Retrieve the 'next' destination from the URL parameters
                 next_page = request.args.get('next')
                 
-                # Security Check: Ensure 'next_page' is a relative path (starts with /)
-                if not next_page or not next_page.startswith('/'):
+                # Security Check: Ensure 'next_page' is a relative, same-site path.
+                # Reject scheme-relative URLs like "//evil.com" or "/\evil.com",
+                # which browsers treat as protocol-relative redirects off-site.
+                if (
+                    not next_page
+                    or not next_page.startswith('/')
+                    or next_page.startswith('//')
+                    or next_page.startswith('/\\')
+                ):
                     next_page = url_for('main.home')
                 
                 return redirect(next_page)
@@ -57,6 +97,8 @@ def register():
         return redirect(url_for('main.home'))
 
     if request.method == "POST":
+        if is_rate_limited(request.remote_addr):
+            return render_template("auth/register.html", mode="register", error="Too many attempts. Please wait 5 minutes.")
         email = request.form.get("email")
         password = request.form.get("password")
         
@@ -69,7 +111,8 @@ def register():
                 flash("Registration Successful! Welcome to the Toolkit.", "success")
                 return redirect(url_for('main.setup'))
             else:
-                return render_template("auth/register.html", mode="register", error="Registration failed")
+                error_msg = resp.json().get('error', {}).get('message', 'Registration failed')
+                return render_template("auth/register.html", mode="register", error=error_msg)
         else:
             return render_template("auth/register.html", mode="register", error="Registration system not configured")
     
@@ -78,7 +121,11 @@ def register():
 @auth_bp.route("/reset-password", methods=["GET", "POST"])
 def reset_password():
     if request.method == "POST":
+        if is_rate_limited(request.remote_addr):
+            return render_template("auth/register.html", mode="register", error="Too many attempts. Please wait 5 minutes.")
         email = request.form.get("email")
+        if not email:
+            return render_template("auth/reset.html", mode="reset", error="Please enter your email.")
         if FIREBASE_WEB_API_KEY:
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_WEB_API_KEY}"
             resp = requests.post(url, json={"requestType": "PASSWORD_RESET", "email": email})
@@ -94,4 +141,5 @@ def reset_password():
 @auth_bp.route("/logout")
 def logout():
     session.clear()
+    flash("You have been logged out successfully.", "success")
     return redirect(url_for('auth.login'))
