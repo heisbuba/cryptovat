@@ -1,20 +1,29 @@
-const CACHE_NAME = 'quantvat-shell-v1';
+const CACHE_NAME = 'quantvat-shell-v5';
 const STATIC_ASSETS = [
-  '/',
-  '/static/css/base.css',
   '/static/icons/icon-192.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap'
 ];
 
-// Pre-cache the UI shell
+const NEVER_CACHE_PREFIXES = [
+  '/api/', '/tasks/', '/dashboard', '/settings', '/journal',
+  '/reports', '/admin', '/deep-diver', '/setup', '/watchlist',
+  '/save-config', '/save-filters', '/reset-filters', '/factory-reset',
+  '/login', '/register', '/reset-password', '/logout'
+];
+
+// Cache each asset independently so one failure doesn't block the rest
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => (
+      Promise.all(STATIC_ASSETS.map((url) => cache.add(url).catch((err) => {
+        console.warn('QuantVAT SW: skipping uncacheable asset', url, err);
+      })))
+    ))
   );
   self.skipWaiting();
 });
 
-// Cleanup old caches
+// Drop old cache versions
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
@@ -23,25 +32,38 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. Fetch Phase: Intelligent Routing
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // CBypass cache for API calls to ensure fresh trading data
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('/tasks/')) {
+  // Bypass cache completely for root '/' and dynamic/authenticated routes
+  if (url.pathname === '/' || NEVER_CACHE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
+    return; // Fallback directly to network
+  }
+
+  // Cache API only supports GET
+  if (event.request.method !== 'GET') {
     return;
   }
 
-  // Stale-While-Revalidate for UI
+  // Stale-while-revalidate for static asset shells
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((response) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        });
-        return response || fetchPromise;
-      });
-    })
+    caches.open(CACHE_NAME).then((cache) => (
+      cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            // Don't cache error responses (
+            if (networkResponse && networkResponse.ok) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch((err) => {
+            // Network failed — fall back to cache instead of ERR_FAILED
+            return cachedResponse || Promise.reject(err);
+          });
+
+        return cachedResponse || fetchPromise;
+      })
+    ))
   );
 });
