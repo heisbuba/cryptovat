@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#151a1e">
-    <title>QuantVAT - Quantitative Crypto Volume Analysis Toolkit</title>
-    <meta name="description" content="Quantitative Crypto Volume Analysis Toolkit for cross-market Spot/Futures analysis, tracking & automated data-driven PDF reporting.">
-    <meta property="og:title" content="QuantVAT: Crypto Volume Analysis Toolkit">
-    <meta property="og:description" content="Quantitative Crypto Volume Analysis Toolkit for cross-market Spot/Futures analysis, tracking & automated data-driven PDF reporting.">
+    <title>QuantVAT - Quantitative Crypto Volume Analysis Tool</title>
+    <meta name="description" content="Quantitative Crypto Volume Analysis Tool for cross-market Spot/Futures analysis, tracking & automated data-driven PDF reporting.">
+    <meta property="og:title" content="QuantVAT: Crypto Volume Analysis Tool">
+    <meta property="og:description" content="Quantitative Crypto Volume Analysis Tool for cross-market Spot/Futures analysis, tracking & automated data-driven PDF reporting.">
     <meta property="og:url" content="https://quantvat.hf.space">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:type" content="website">
@@ -28,7 +28,7 @@
        "name": "QuantVAT",
        "operatingSystem": "Web",
        "applicationCategory": "FinanceApplication",
-       "description": "Quantitative Crypto Volume Analysis Toolkit for cross-market Spot/Futures analysis.",
+       "description": "Quantitative Crypto Volume Analysis Tool for cross-market Spot/Futures analysis.",
        "offers": {
        "@type": "Offer",
        "price": "0",
@@ -77,7 +77,7 @@
             padding: 0 5%;
             box-sizing: border-box;
             z-index: 1000;
-            
+
             /* Initial State: Transparent */
             background: transparent;
             border-bottom: 1px solid transparent;
@@ -93,14 +93,6 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
-        .logo {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: var(--text-white);
-            letter-spacing: -0.5px;
-        }
-        .logo span { color: var(--accent-green); }
-
         .nav-links { display: flex; gap: 40px; align-items: center; }
         .nav-links a {
             color: var(--text-gray);
@@ -109,7 +101,7 @@
             position: relative;
             transition: color 0.3s;
         }
-        
+
         /* Modern Hover Underline Animation */
         .nav-links a::after {
             content: '';
@@ -143,15 +135,15 @@
             border: 1px solid var(--accent-green);
             background: transparent;
         }
-        
+
         .btn-primary { 
             background: var(--accent-green); 
             color: #000; 
         }
 
-        /* --- MOBILE MENU (Full Screen Overlay) --- */
+        /* --- MOBILE MENU --- */
         .hamburger { display: none; cursor: pointer; color: white; font-size: 1.5rem; }
-        
+
         .mobile-menu {
             position: fixed; 
             top: 0; 
@@ -169,9 +161,9 @@
             z-index: 1001; 
             transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .mobile-menu.active { height: 100vh; }
-        
+
         .mobile-menu a { font-size: 1.2rem; font-weight: 600; color: var(--text-white); }
         .close-menu { position: absolute; top: 30px; right: 30px; font-size: 2rem; cursor: pointer; color: var(--text-gray); }
 
@@ -189,7 +181,7 @@
             line-height: 1.1;
             color: var(--text-white);
         }
-        
+
         .hero h1 span { color: var(--accent-green); }
 
         .hero p {
@@ -228,7 +220,7 @@
             margin-top: 5px;
         }
 
-        /* --- FEATURES --- */
+        /* --- METRICS --- */
         .section-title {
             text-align: center;
             font-size: 2rem;
@@ -241,7 +233,7 @@
             margin-bottom: 50px;
         }
 
-        .features {
+        .metrics {
             max-width: 1100px;
             margin: 0 auto;
             padding: 40px 20px 80px;
@@ -250,19 +242,19 @@
             gap: 30px;
         }
 
-        .feature-card {
+        .metric-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             padding: 30px;
             border-radius: 12px;
             transition: transform 0.2s;
         }
-        .feature-card:hover {
+        .metric-card:hover {
             transform: translateY(-5px);
             border-color: var(--accent-green);
         }
 
-        .feature-icon {
+        .metric-icon {
             font-size: 1.8rem;
             margin-bottom: 20px;
             display: inline-block;
@@ -272,47 +264,8 @@
             color: var(--accent-green);
         }
 
-        .feature-card h3 { margin-top: 0; color: var(--text-white); }
-        .feature-card p { color: var(--text-gray); line-height: 1.5; font-size: 0.95rem; }
-
-        /* --- PRICING --- */
-        .pricing-section {
-            padding: 80px 20px;
-            background: linear-gradient(to bottom, var(--bg-main), #111518);
-            text-align: center;
-        }
-
-        .pricing-card {
-            background: var(--bg-card);
-            border: 1px solid var(--accent-green);
-            border-radius: 16px;
-            padding: 50px 30px;
-            max-width: 400px;
-            margin: 0 auto;
-            position: relative;
-            box-shadow: 0 0 30px rgba(16, 185, 129, 0.1);
-        }
-
-        .badge {
-            background: var(--accent-green);
-            color: #000;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            letter-spacing: 0.5px;
-        }
-
-        .price { font-size: 3.5rem; font-weight: 800; color: var(--text-white); margin: 20px 0 5px; }
-        .period { color: var(--text-gray); font-size: 1rem; }
-        
-        .feature-list { margin: 30px 0; text-align: left; padding-left: 20px; display: inline-block; }
-        .feature-list li { margin-bottom: 12px; color: var(--text-gray); font-size: 0.95rem; }
-        .feature-list li span { color: var(--accent-green); margin-right: 10px; font-weight: bold; }
+        .metric-card h3 { margin-top: 0; color: var(--text-white); }
+        .metric-card p { color: var(--text-gray); line-height: 1.5; font-size: 0.95rem; }
 
         /* --- FOOTER --- */
         .footer {
@@ -334,15 +287,15 @@
             .hamburger { display: block; }
             .hero h1 { font-size: 1.8rem; }
             .hero-buttons { flex-direction: column; }
-            
+
             .btn { width: 100%; text-align: center; box-sizing: border-box; }
-      
+
             .mobile-menu .btn {
                 width: 90%;       
                 max-width: 350px; 
                 margin: 0 auto;   
             }
-            
+
             .stats-container { flex-direction: column; gap: 30px; }
         }
 
@@ -353,9 +306,9 @@
     <nav class="navbar">
         <a href="{{ url_for('main.home') if session.get('user_id') else url_for('main.index') }}" 
    style="display: flex; align-items: center; gap: 0; text-decoration: none;">
-    
+
     <svg width="28" height="28" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" 
-         style="margin-bottom: 2px; margin-right: -2px; flex-shrink: 0;">
+         style="margin-bottom: 2px; margin-right: -2px; flex-shrink: 0; forced-color-adjust: none;">
       <rect width="512" height="512" rx="120" fill="#151a1e"/>
       <path d="M380 380L430 430" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
       <circle cx="256" cy="256" r="160" stroke="#ffffff" stroke-width="32"/>
@@ -363,16 +316,18 @@
       <rect x="241" y="230" width="30" height="100" rx="4" fill="var(--accent-green)"/>
       <rect x="292" y="190" width="30" height="140" rx="4" fill="var(--accent-green)"/>
     </svg>
-    
+
     <span style="font-weight: 800; font-size: 1.4rem; letter-spacing: -1px; color: #fff; line-height: 1;">
         uant<span style="color: var(--accent-green);">VAT</span>
     </span>
 </a>
 
         <div class="nav-links">
-            <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
-            <a href="https://github.com/heisbuba/quantvat" target="_blank" title="View Source Code">Open Source ↗</a>
+            <a href="#metrics">Metrics</a>
+            <a href="https://www.quantvat.name.ng" title="QuantVAT Blog" target="_blank">Blog</a>
+            <a href="/privacy-policy" title="Privacy Policy">Privacy Policy</a>
+            <a href="https://github.com/heisbuba/quantvat" target="_blank" title="View Code on Github">Github ↗</a>
+          <a href="https://x.com/quantvat" target="_blank" title="QuantVAT on X">𝕏 (Twitter)</a>
         </div>
 
         <div class="nav-actions">
@@ -389,13 +344,12 @@
 
     <div class="mobile-menu" id="mobileMenu">
         <div class="close-menu" onclick="toggleMenu()">×</div>
-        
         <a href="{{ url_for('main.index') }}" onclick="toggleMenu()">Home</a>
-        
-        <a href="#features" onclick="toggleMenu()">Features</a>
-        <a href="#pricing" onclick="toggleMenu()">Pricing</a>
-        <a href="https://github.com/heisbuba/quantvat" target="_blank">Open Source</a>
-        
+        <a href="#metrics" onclick="toggleMenu()">Metrics</a>
+        <a href="https://www.quantvat.name.ng" title="QuantVAT Blog" target="_blank">Blog</a>
+        <a href="/privacy-policy" title="Privacy Policy">Privacy Policy</a>
+        <a href="https://github.com/heisbuba/quantvat" target="_blank" title="View Code on Github">Github ↗</a>
+        <a href="https://x.com/quantvat" target="_blank" title="QuantVAT on X">𝕏 (Twitter)</a>
         <div style="width: 50%; height: 1px; background: var(--border); margin: 10px 0;"></div>
 
         {% if session.get('user_id') %}
@@ -407,10 +361,10 @@
     </div>
 
     <section class="hero">
-        <h1>Quantitative Crypto Volume Analysis Toolkit
+        <h1>Quantitative Crypto Volume Analysis Tool
         </h1>
         <p>
-            Merge Spot and Futures data to perform cross-market analysis. Verify volume, track the VTMR metric, Funding Rate, OISS, and generate professional PDF reports in under 60 seconds.
+        Bridge the gap between Spot and Futures to see the full market picture. Verify volume, track VTMR, monitor funding rates and OISS, and generate professional PDF reports in seconds.
         </p>
 
         <div class="hero-buttons">
@@ -422,7 +376,7 @@
                 <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="padding: 15px 30px;">
                     Start Analysis Free
                 </a>
-                <a href="#features" class="btn btn-login" style="padding: 15px 30px;">
+                <a href="#metrics" class="btn btn-login" style="padding: 15px 30px;">
                     Learn Metrics
                 </a>
             {% endif %}
@@ -431,11 +385,11 @@
 
     <div class="stats-container">
         <div class="stat-item">
-            <span class="stat-number">6+</span>
+            <span class="stat-number">4+</span>
             <span class="stat-label">Data Sources Verified</span>
         </div>
         <div class="stat-item">
-            <span class="stat-number">60s</span>
+            <span class="stat-number">10s</span>
             <span class="stat-label">Analysis Speed</span>
         </div>
         <div class="stat-item">
@@ -444,88 +398,94 @@
         </div>
     </div>
 
-    <section id="features" class="features">
+    <section id="metrics" class="metrics">
         <div style="grid-column: 1 / -1; text-align: center; margin-bottom: 20px;">
             <h2 class="section-title">QuantVAT Ecosystem</h2>
             <p class="section-subtitle">Easy to use "Bring Your Own Keys" environment for traders who require self-controlled data and manual API integration.</p>
     </div>
-        
-        <div class="feature-card">
-            <span class="feature-icon">📊</span>
+
+        <div class="metric-card">
+            <span class="metric-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+            </span>
             <h3>VTMR Logic Engine</h3>
-            <p>Tracks the <strong>Volume-to-MarketCap-Ratio</strong> to identify divergence between trading activity and market valuation. Useful for spotting high-potential opportunities before the crowd.</p>
+            <p>Tracks the <strong>Volume to MarketCap Ratio</strong> to identify divergence between trading activity and market valuation. Useful for spotting high-potential opportunities before the crowd.</p>
         </div>
 
-        <div class="feature-card">
-            <span class="feature-icon">⚡</span>
+        <div class="metric-card">
+            <span class="metric-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+            </span>
             <h3>OISS & Funding</h3>
             <p>Integrated <strong>Open Interest Signal Score</strong> and Funding Rate analysis. We filter out fake volume to show real money flow and crowd's sentiment.</p>
         </div>
 
-      <div class="feature-card">
-        <span class="feature-icon">🧠</span>
+      <div class="metric-card">
+        <span class="metric-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04Z"></path>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"></path>
+            </svg>
+        </span>
          <h3>AI-Powered Trading Journal</h3>
            <p>A semi-automated trading journal system with an integrated <strong>AI Auditor</strong> that reviews your entries to help detect patterns in your execution and psychological state—and is blunt about it. Your data remains secure in your Google Drive.</p>
       </div>
 
-       <div class="feature-card">
-        <span class="feature-icon">🔍</span>
-         <h3>Deep Diver Engine</h3>
-           <p>A dedicated spot tokens browser and quantitative volumetric analysis engine. Analyze token metadata, price change percentage, <strong>VTPC, VTMR</strong>, and real-time velocity metrics to evaluate liquidity and price impact. Powered by CoinGecko.</p>
+         <div class="metric-card">
+        <span class="metric-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+        </span>
+        <h3>Token Screener</h3>
+        <p> Track price change percentage shifts across 24h, 7d, 30d, and 1yr intervals, vtmr, and other data to spot short- or long-term anomalies.</p>
+    </div>
+
+      <div class="metric-card">
+        <span class="metric-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+        </span>
+         <h3>Deep Diver</h3>
+           <p>A dedicated spot tokens browser and quantitative volumetric analysis engine. Analyze token metadata, price change percentage, <strong>VTPC, VTMR</strong>, and real-time velocity metrics.</p>
        </div>
-      
-        <div class="feature-card">
-            <span class="feature-icon">📑</span>
+
+        <div class="metric-card">
+            <span class="metric-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </span>
             <h3>Automated Reporting</h3>
             <p>Generate clean, professional data-driven reports directly in your browser. Seamlessly transition to the <strong>Deep Diver</strong> engine for granular analysis, or archive your trade thesis for long-term edge refinement.</p>
         </div>
-      
-
-        <div class="feature-card">
-        <span class="feature-icon">🤝</span>
-        <h3>Open Source Core</h3>
-        <p>100% Open Source code. Built for transparency, allowing users to verify the logic and contribute to the toolkit's development via GitHub.</p>
-    </div>
 
     </section>
 
-    <section id="pricing" class="pricing-section">
-    <h2 class="section-title">Free Access</h2>
-    <p class="section-subtitle">Customizable tools provided free for the community with full data ownership.</p>
-
-    <div class="pricing-card">
-        <div class="badge">v4.5.0 Available</div>
-        <div class="price">$0<span class="period">/mo</span></div>
-
-        <ul class="feature-list">
-            <li><span>✓</span> <strong>Deep Diver:</strong> Spot Volumetric Analysis (VTPC/VTMR)</li>
-            <li><span>✓</span> <strong>AI Auditor:</strong> Blunt Psychological Trade Reviews</li>
-            <li><span>✓</span> <strong>BYOK Architecture:</strong> Use your own API keys</li>
-            <li><span>✓</span> <strong>Futures Fusion:</strong> Cross-Market Funding, OISS Scoring</li>
-            <li><span>✓</span> <strong>Data Privacy:</strong> Automated Google Drive Backups</li>
-            <li><span>✓</span> <strong>Reporting:</strong> Browser-based PDF Generation</li>
-        </ul>
-
-        {% if session.get('user_id') %}
-            <a href="{{ url_for('main.home') }}" class="btn btn-primary" style="width: 100%; box-sizing: border-box;">
-                Go to Dashboard ➜
-            </a>
-        {% else %}
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="width: 100%; box-sizing: border-box;">
-                Create Free Account
-            </a>
-        {% endif %}
-    </div>
-</section>
-  
     <footer class="footer">
         <p>
             &copy; <span id="year"></span> 
-            <a href="{{ url_for('main.index') }}" title="Quantitative Crypto Volume Analysis Toolkit">QuantVAT</a>. Created by <a href="https://x.com/heisbuba" title="X @heisbuba" target="_blank">Buba</a> with Data curiosity. MIT Licensed.
+            <a href="{{ url_for('main.index') }}" title="Quantitative Crypto Volume Analysis Tool">QuantVAT</a>. Created by <a href="https://x.com/heisbuba" title="X @heisbuba" target="_blank">Buba</a> with Data curiosity. MIT Licensed.
         </p>
     </footer>
 
-  
    <script>
     // Dynamic Sticky Navbar
     const navbar = document.querySelector('.navbar');
@@ -554,7 +514,7 @@
     if (yearEl) {
         yearEl.textContent = new Date().getFullYear();
     }
-    
+
 </script> 
 {% include 'includes/partials/pwa_prompt.html' %}
 </body>
