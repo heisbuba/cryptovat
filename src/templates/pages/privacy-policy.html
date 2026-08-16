@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - QuantVAT{% endblock %}
+{% block description %}Privacy Policy for the Quantitative Crypto Volume Analysis Tool (QuantVAT).{% endblock %}
+{% block og_title %}Privacy Policy - QuantVAT{% endblock %}
+{% block og_description %}Privacy Policy for the Quantitative Crypto Volume Analysis Tool (QuantVAT).{% endblock %}
+{% block keywords %}privacy policy, quantvat, data ownership, google oauth, google drive{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Typography */
+    .card p {
+        color: #94a3b8;
+        line-height: 1.6;
+        font-size: 0.95rem;
+        margin-bottom: 15px;
+    }
+    .card strong {
+        color: #f1f5f9;
+        font-weight: 700;
+    }
+
+    /* Page heading */
+    .page-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Section titles */
+    .section-title {
+        color: var(--accent-green);
+    }
+
+    /* Guide list */
+    .guide-list {
+        padding-left: 20px;
+        margin: 0;
+        color: #94a3b8;
+    }
+    .guide-list li {
+        margin-bottom: 12px;
+        line-height: 1.6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="page-heading">
+        <span style="display: inline-flex; align-items: center; justify-content: center; color: var(--accent-green);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+        </span>
+        Privacy Policy
+    </h1>
+
+    <!-- Introduction -->
+    <div class="card">
+        <h2 class="section-title">Overview</h2>
+        <p>
+            <strong>QuantVAT</strong> (Quantitative Crypto Volume Analysis Toolkit) is built with a privacy-first
+            philosophy. This policy explains what data the application touches, where it is stored, and how we
+            use access granted through third-party services such as Google.
+        </p>
+    </div>
+
+    <!-- Data Ownership & Storage -->
+    <div class="card">
+        <h2 class="section-title">Data Ownership & Storage</h2>
+        <p>
+            QuantVAT operates on a user-centric data model. We do not store, aggregate, or retain your personal
+            trading data on our servers. All journal records, images, and backups created through the application
+            are stored directly within your personal Google Drive using the <strong>drive.file</strong> scope.
+        </p>
+    </div>
+
+    <!-- Google OAuth Access -->
+    <div class="card">
+        <h2 class="section-title">Google OAuth Access</h2>
+        <p>
+            We use Google OAuth strictly to authenticate and write application-generated files to your Google
+            Drive folder. We do not access, view, or modify any other files in your Drive.
+        </p>
+    </div>
+
+    <!-- Compliance -->
+    <div class="card">
+        <h2 class="section-title">Compliance</h2>
+        <p>
+            Our use and transfer to any other app of information received from Google APIs will adhere to the
+            <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>.
+        </p>
+    </div>
+
+    <!-- What We Collect -->
+    <div class="card">
+        <h2 class="section-title">What We Collect</h2>
+        <ol class="guide-list">
+            <li><strong>Account Information:</strong> Basic profile details provided during registration (e.g. email address) to authenticate your account.</li>
+            <li><strong>API Keys You Provide:</strong> Third-party API keys (e.g. CoinMarketCap) you enter are used solely to fetch market data on your behalf.</li>
+            <li><strong>Application-Generated Files:</strong> Trading journal entries, images, and PDF reports, which are written directly to your own Google Drive rather than our servers.</li>
+            <li><strong>Usage Data:</strong> Minimal technical data (such as error logs) may be collected to maintain and improve service reliability.</li>
+        </ol>
+    </div>
+
+    <!-- How We Use Information -->
+    <div class="card">
+        <h2 class="section-title">How We Use Information</h2>
+        <p>
+            Information you provide is used only to operate core features of QuantVAT: authenticating your
+            session, performing spot and futures cross-analysis, generating your OISS score, and saving your
+            journal and reports to your own Google Drive. We do not sell, rent, or share your personal data
+            with third parties for advertising or marketing purposes.
+        </p>
+    </div>
+
+    <!-- Data Retention & Deletion -->
+    <div class="card">
+        <h2 class="section-title">Data Retention & Deletion</h2>
+        <p>
+            Because your journal records, images, and backups live in your own Google Drive, you remain in
+            control of retention and deletion at all times. Revoking QuantVAT's access through your Google
+            Account settings, or deleting the relevant files from your Drive, removes QuantVAT's ability to
+            read or write that data.
+        </p>
+    </div>
+
+    <!-- Changes to This Policy -->
+    <div class="card">
+        <h2 class="section-title">Changes to This Policy</h2>
+        <p>
+            We may update this Privacy Policy from time to time to reflect changes in our practices or for
+            other operational, legal, or regulatory reasons. Material changes will be reflected on this page
+            with an updated revision date.
+        </p>
+    </div>
+</div>
+{% endblock %}
