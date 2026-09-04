@@ -34,6 +34,8 @@ def short_num(n: float | int) -> str:
         n = float(n)
     except Exception:
         return str(n)
+    if n >= 1_000_000_000_000:
+        return f"{n/1_000_000_000_000:.2f}T"
     if n >= 1_000_000_000:
         return f"{n/1_000_000_000:.2f}B"
     if n >= 1_000_000:
