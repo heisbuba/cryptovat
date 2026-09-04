@@ -3,15 +3,7 @@
 **QuantVAT** is an ecosystem built for data-driven traders. It tracks volumetric activity, performing cross-market analysis by fusing Spot and Futures data. In addition, it features the Deep Diver Engine for spot analysis and a semi-automated Trading Journal with blunt AI auditing.
 
 <p align="center">
-  <a href="https://heisbuba-quantvat.hf.space" target="_blank">
-    <img src="https://img.shields.io/badge/Live_Demo-HERE-10b981?style=for-the-badge&logo=huggingface" alt="Live Demo"/>
-  </a><a href="https://www.x.com/quantvat" target="_blank">
-    <img src="https://img.shields.io/badge/quantvat-000000?style=for-the-badge&logo=x" alt="X"/>
-  </a><a href="https://www.youtube.com/@quantvat" target="_blank">
-    <img src="https://img.shields.io/badge/@quantvat-FF0000?style=for-the-badge&logo=youtube" alt="YouTube"/>
-</a><a href="https://www.quantvat.name.ng" target="_blank">
-    <img src="https://img.shields.io/badge/Blog-quantvat.name.ng-ffffff?style=for-the-badge&logo=blogger" alt="Blog"/>
-  </a>
+  <a href="https://heisbuba-quantvat.hf.space" target="_blank"><img src="https://img.shields.io/badge/Live_Demo-HERE-10b981?style=for-the-badge&logo=huggingface" alt="Live Demo"/></a><a href="https://www.x.com/quantvat" target="_blank"><img src="https://img.shields.io/badge/quantvat-000000?style=for-the-badge&logo=x" alt="X"/></a><a href="https://www.youtube.com/@quantvat" target="_blank"><img src="https://img.shields.io/badge/@quantvat-FF0000?style=for-the-badge&logo=youtube" alt="YouTube"/></a><a href="https://www.quantvat.name.ng" target="_blank"><img src="https://img.shields.io/badge/Blog-quantvat.name.ng-ffffff?style=for-the-badge&logo=blogger" alt="Blog"/></a>
 </p>
 
 # Features
