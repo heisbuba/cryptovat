@@ -1,69 +1,98 @@
-# Quantitative Crypto Volume Analysis Toolkit (QuantVAT)
+# QuantVAT
 
-**Quantitative Crypto Volume Analysis Toolkit is an ecosystem built for data-driven traders.** It tracks volumetric activity, performing cross-market analysis by fusing Spot and Futures data. In addition, it features the Deep Diver Engine for spot analysis and a semi-automated Trading Journal with blunt AI auditing.
+**QuantVAT** is an ecosystem built for data-driven traders. It tracks volumetric activity, performing cross-market analysis by fusing Spot and Futures data. In addition, it features the Deep Diver Engine for spot analysis and a semi-automated Trading Journal with blunt AI auditing.
 
+<p align="center">
+  <a href="https://heisbuba-quantvat.hf.space" target="_blank">
+    <img src="https://img.shields.io/badge/Live_Demo-HERE-10b981?style=for-the-badge&logo=huggingface" alt="Live Demo"/>
+  </a><a href="https://www.x.com/quantvat" target="_blank">
+    <img src="https://img.shields.io/badge/quantvat-000000?style=for-the-badge&logo=x" alt="X"/>
+  </a><a href="https://www.youtube.com/@quantvat" target="_blank">
+    <img src="https://img.shields.io/badge/@quantvat-FF0000?style=for-the-badge&logo=youtube" alt="YouTube"/>
+</a><a href="https://www.quantvat.name.ng" target="_blank">
+    <img src="https://img.shields.io/badge/Blog-quantvat.name.ng-ffffff?style=for-the-badge&logo=blogger" alt="Blog"/>
+  </a>
+</p>
 
-# **Key Features**
+# Features
 
-- Experience a high-end, simple, and modern analysis app that works across all your devices.
-- No complex local setup or deep technical knowledge required—just log in and start analyzing.
-- We use a multi-source verification engine that cross-references 4 major data sources to filter out "fake" volume and data errors.
-- We fuse Spot market trends with Futures data for that essential institutional "edge".
-- Our multi-threaded engine does the heavy lifting, delivering deep analysis in under 60 seconds.
-- Secure Firebase integration means your API keys and custom settings are saved and ready every time you log in.
-- Generate and download clean, professional data-driven PDF reports directly in your browser with one click.
-- We included built-in logic for the Open Interest Signal Score (OISS) and Funding Rate analysis.
-- The system automatically wipes temporary analysis files after every session to keep your workspace private.
-- Developed VTMR (Volume-to-MarketCap-Ratio) metric specifically for you to spot opportunities easily.
+| Feature | Description |
+|---------|-------------|
+| **Cross-Market Fusion** | Combines Spot market trends with Futures data to get overall picture |
+| **VTMR Logic Engine** | Custom Volume-to-MarketCap Ratio metric to identify divergence between trading activity and valuation |
+| **OISS & Funding Analysis** | Open Interest Signal Score + funding rate analytics |
+| **Deep Diver Engine** | Dedicated spot token browser with quantitative volumetric analysis (VTPC, VTMR, velocity metrics) |
+| **AI-Powered Trading Journal** | Semi-automated journal with blunt AI auditing to detect patterns in execution and psychology |
+| **Automated Reporting** | Generate professional, data-driven reports directly in your browser |
+| **PWA Support** | Install as a native app for instant access (iOS/Android/Desktop) |
 
-# **Setup Guide**
+# Setup Guide
 
-- Launch the [Live App Here](https://heisbuba-quantvat.hf.space).
-- Create an account and log in.
-- Obtain and enter your API keys in the **Setup Wizard**.
+1. **Launch** the [Live App](https://quantvat.hf.space)
+2. **Create an account** and log in
+3. Enter your **Coingecko API Demo key** in the **Setup Wizard**
+4. **Configure VTMR** via CoinAlyze:
 
-- Visit [CoinAlyze.net](https://coinalyze.net) and sign up.
+### Step 1: API Configuration
+1. Visit [CoinAlyze.net](https://coinalyze.net) and sign up
+2. Navigate to **Custom Metrics** → **Create Custom Metrics**
+3. Enter **VTMR** in Name and Short Name fields
+4. Paste this expression in the Expression field:
+   ```code
+   ((vol_1d[0] / mc_1d[0]) * 10) / 10 * (vol_1d[0] / mc_1d[0] >= 0.5)
+   ```
+5. **Save & Close**
 
-- Navigate to **Custom Metrics** and click on **Create Custom Metrics**.
+### Step 2: Customize Columns
+1. Go to **Columns** → Deselect all
+2. Select only:
+   - Market Capitalization
+   - Volume 24H
+   - Open Interest Change % 24H
+   - Predicted Funding Rate Average, OI Weighted
+   - VTMR
+3. Click **Apply**
 
-- Enter **VTMR** in the Name and Short Name fields, paste the **VTMR code** below in the Expression field, then **Save & Close**.
+### Step 3: Generate Your Feed URL
+1. Sort the data by **VTMR** (highest first)
+2. Copy the full URL
+3. Paste it in the **VTMR box** inside QuantVAT's Setup Wizard
+4. Proceed to **Dashboard**
 
-```code
-((vol_1d[0] / mc_1d[0]) * 10) / 10 * (vol_1d[0] / mc_1d[0] >= 0.5)
-```
-
-- Go to **Columns**, deselect all, and select **Market Capitalization**, **Volume 24H**, **Open Interest Change % 24H**, **Predicted Funding Rate Average, OI Weighted**, and **VTMR**, then click **Apply**.
-
-- Sort the data by **VTMR**, copy the URL and paste it in the VTMR box in App's Setup Wizard and proceed to dashboard.
-
-- Tap on **Spot Scan** to generate spot market data.
-
-- Click on **Get Futures** > **Open CoinAlyze** > Go to Chrome Menu (⋮) >  → Share → Print, and save it as PDF. **Note:** Do not change the file name; but if you must then ensure it is saved as **Futures.pdf**.
-
-- Use the upload button in **Get Futures** to upload the file and complete your cross-market analysis.
-
-# ⚖️ **Disclaimer**
-
-QuantVAT is for research and educational purposes only. It does not provide financial advice, trading signals, or investment recommendations. All data analysis should be verified independently.
-
-# **Contribute**
-
-This project is MIT Licensed — you are free to use, modify, and build upon it.
-
- - **Issues**: Report bugs or suggest data metrics.
-
- - **Pull Requests**: Open a PR to add new analysis logic or UI improvements.
-
- - **Feedback**: All suggestions are welcome to help make this the best free toolkit for traders.
-
-# **Changelog**
-
-- **v4.6**: Enhanced futures PDF parser, integrated cross‑platform data extraction from Coinalyze reports, and some code restructured some code. - *August 4, 2026*
-- **v4.5**: Major UI/UX fix, Integration of semi-automated AI Powered Trading Journal, Deep Diver Engine, and PWA support - *Feb 12, 2026* 
-- **v4.1**: Improved Spot Volume Tracker Data Accuracy with mandatoy CoinGecko Demo API configuration - *Jan 11, 2026*
-- **v4.0**: Cloud Edition (Hugging Face) with Firebase integration added and major logic and UI overhaul - *Dec 25, 2025*.
-- **v3.0**: Local Web-UI added.
-- **v2.0**: Integrated OISS and explainer added - *Dec. 02, 2025*.
-- **v1.0**: full version created and uploaded - *Nov. 30, 2025*.
+### Step 4: Spot & Futures Analysis
+- **Spot Scan** — Tap the button to generate spot market data
+- **Get Futures** — Export PDF from CoinAlyze → Upload to QuantVAT → Complete your cross-market analysis
 
 
+# Disclaimer
+
+QuantVAT is for **research and educational purposes only**. It does **not** provide:
+- Financial advice
+- Trading signals
+- Investment recommendations.
+
+# Contributing
+
+We welcome contributions! This project is **MIT Licensed** — free to use, modify, and build upon.
+
+| Contribution Type | How to Help |
+|-------------------|-------------|
+| 🐛 **Issues** | Report bugs or suggest new data metrics |
+| 🔧 **Pull Requests** | Add new analysis logic or UI improvements |
+| 💬 **Feedback** | All suggestions welcome |
+
+# Changelog
+
+| Version | Date | Changes |
+|---------|------|---------|
+| **v4.6** | Aug 4, 2026 | Enhanced futures PDF parser, cross‑platform data extraction, code restructure |
+| **v4.5** | Feb 12, 2026 | Major UI/UX fix, AI Trading Journal, Deep Diver Engine, PWA support |
+| **v4.1** | Jan 11, 2026 | Improved Spot Volume Tracker with mandatory CoinGecko Demo API config |
+| **v4.0** | Dec 25, 2025 | Cloud Edition (Hugging Face) with Firebase integration, major overhaul |
+| **v3.0** | — | Local Web-UI added |
+| **v2.0** | Dec 2, 2025 | Integrated OISS and explainer |
+| **v1.0** | Nov 30, 2025 | Initial full version |
+
+# License
+
+MIT License — See [LICENSE](LICENSE) for details.
