@@ -26,15 +26,14 @@ class TokenData:
 
 
 class PDFParser:
-    """Handles extraction of tabular data from Coinalyze PDFs"""
-    # A currency/market-cap/volume figure.
+    """Extracts tabular data from Coinalyze PDFs (PC and mobile layouts)."""
+
     _CURRENCY_RE = re.compile(r'^[+-]?\$[\d,]+\.?\d*[kKmMbBtT]?$')
 
-    # A percentage figure
     _PERCENT_RE = re.compile(r'^[+-]?[\d,]+\.?\d*%$')
     _PERCENT_PLACEHOLDERS = {'n/a', '-', '\u2013', '\u2014'}
 
-    # VTMR: a bare number, optionally with a k/m/b/t suffix, no "$" and no "%".
+    # VTMR: bare number, optional k/m/b/t suffix, no "$" and no "%".
     _PLAIN_NUMBER_RE = re.compile(r'^\d*\.?\d+[kKmMbBtT]?$')
 
     IGNORE_KEYWORDS = {
@@ -86,6 +85,9 @@ class PDFParser:
 
     @classmethod
     def _group_into_blocks(cls, words) -> List[List[str]]:
+        # words: (x0, y0, x1, y1, text, block_no, line_no, word_no)
+        # from page.get_text("words"). Groups by block_no, ordered within
+        # a block by (line_no, word_no).
         by_block: "dict[int, list]" = {}
         order: List[int] = []
         for w in words:
@@ -103,10 +105,14 @@ class PDFParser:
             blocks.append([t for _, _, t in items])
         return blocks
 
-    # --- Trailing-financial-tail consumption --- #
+    # --- Trailing-financial-tail consumption (shared by full-row and
+    #     financial-only parsing) ---
 
     @classmethod
     def _consume_financial_tail(cls, toks: List[str]) -> Optional[dict]:
+        # Consumes a trailing [mkt_cap, vol, oi%?, funding%?, vtmr] tail
+        # from the right. Returns parsed fields + remaining leading tokens,
+        # or None if the tail isn't present. Works on a local copy.
         toks = toks[:]
 
         if not toks or not cls._is_vtmr(toks[-1]):
@@ -143,17 +149,23 @@ class PDFParser:
         joined_lower = ' '.join(tokens).lower()
         if any(k in joined_lower for k in cls.IGNORE_KEYWORDS):
             return True
-        # Some PDF exports render logo/wordmark text as individually spaced
-        compact = re.sub(r'\s+', '', joined_lower)
-        return any(k.replace(' ', '') in compact for k in cls.IGNORE_KEYWORDS)
+        # Some exports render the "Coinalyze" wordmark as individually spaced
+        # glyphs sharing a block with other nav text. Detect that specific
+        # pattern (run of single-char tokens spelling it out) rather than
+        # substring-matching a whitespace-stripped block against every
+        # keyword - that's unsafe, e.g. "Bitcoin"+"SV" -> "...coins...".
+        single_letters = ''.join(t.lower() for t in tokens if len(t) == 1 and t.isalpha())
+        return 'coinalyze' in single_letters
 
     @classmethod
     def _looks_like_ticker(cls, tok: str) -> bool:
+        # Real tickers are short and uppercase/numeric/CJK - never an
+        # ordinary mixed-case word. Filters out stray page furniture that
+        # slips past IGNORE_KEYWORDS.
         if not tok or len(tok) > 15:
             return False
         if not tok.isascii():
-            # CJK/other-script tickers are fine, but reject pure symbols/icons
-            return any(ch.isalnum() for ch in tok)
+            return any(ch.isalnum() for ch in tok)  # reject bare symbols/icons
         if tok.isdigit():
             return True
         return bool(re.fullmatch(r'[A-Z0-9]{1,10}', tok))
@@ -192,9 +204,8 @@ class PDFParser:
         """Mobile layout, left column: wrapped name lines + trailing ticker."""
         if len(tokens) < 2:
             return None
-        # A financial-shaped block must never be accepted here.
         if cls._is_vtmr(tokens[-1]) and cls._consume_financial_tail(tokens) is not None:
-            return None
+            return None  # financial-shaped block must never land here
         ticker_tok = tokens[-1]
         if not cls._looks_like_ticker(ticker_tok):
             return None
@@ -203,7 +214,7 @@ class PDFParser:
             return None
         return name, ticker_tok
 
-    # --- Core Extraction Logic ---
+    # --- Core extraction logic ---
 
     @classmethod
     def _parse_page(cls, blocks: List[List[str]]) -> List[TokenData]:
@@ -229,7 +240,7 @@ class PDFParser:
             if name_pair is not None:
                 name_entries.append(name_pair)
                 continue
-            # else: page furniture / unrecognized block — skip silently.
+            # else: page furniture / unrecognized block - skip silently
 
         if financial_entries or name_entries:
             if len(financial_entries) != len(name_entries):
@@ -272,7 +283,7 @@ class PDFParser:
                 return pd.DataFrame()
             df = pd.DataFrame([vars(t) for t in data])
 
-            # Preserve Unicode tickers (CJK, etc.) and CJK radical glyphs
+            # Preserve Unicode tickers (CJK, etc.)
             df['ticker'] = df['ticker'].apply(
                 lambda x: re.sub(rf'[^{cls._TICKER_KEEP}]', '', str(x))
             )
@@ -293,7 +304,7 @@ class PDFParser:
             return None
         csv_path = pdf_path.with_suffix(".csv")
         try:
-            df.to_csv(csv_path, index=False)
+            df.to_csv(csv_path, index=False, na_rep='n/a')
         except Exception as e:
             print(f"   Could not parse futures CSV: {e}")
             return None
