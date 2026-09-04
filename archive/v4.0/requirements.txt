@@ -1,8 +1,0 @@
-flask
-firebase-admin
-requests
-pandas
-pypdf
-lxml
-gunicorn
-playwright
