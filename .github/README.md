@@ -95,4 +95,4 @@ We welcome contributions! This project is **MIT Licensed** — free to use, modi
 
 # License
 
-MIT License — See [LICENSE](LICENSE) for details.
+MIT License — See [LICENSE](.github/LICENSE) for details.
