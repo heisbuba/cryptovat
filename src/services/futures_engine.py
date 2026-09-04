@@ -6,9 +6,12 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 try:
-    import pypdf
+    import pymupdf as fitz
 except Exception:
-    pypdf = None
+    try:
+        import fitz  # older package name
+    except Exception:
+        fitz = None
 
 
 @dataclass
@@ -23,20 +26,21 @@ class TokenData:
 
 
 class PDFParser:
-    """Handles extraction of tabular data from Coinalyze PDFs using regex. """
+    """Handles extraction of tabular data from Coinalyze PDFs"""
+    # A currency/market-cap/volume figure.
+    _CURRENCY_RE = re.compile(r'^[+-]?\$[\d,]+\.?\d*[kKmMbBtT]?$')
 
-    FINANCIAL_PATTERN = re.compile(
-        r'(\$?[+-]?[\d,\.]+[kKmMbBtT]?|[Nn]\/[Aa])\s+'
-        r'(\$?[+-]?[\d,\.]+[kKmMbBtT]?|[Nn]\/[Aa])\s+'
-        r'(?:([+\-]?[\d\.\,]+\%?|[\-\–\—]|[Nn]\/[Aa])\s+)?'
-        r'(?:([+\-]?[\d\.\,]+\%?|[\-\–\—]|[Nn]\/[Aa])\s+)?'
-        r'(\d*\.?\d+[kKmMbBtT]?)'
-    )
+    # A percentage figure
+    _PERCENT_RE = re.compile(r'^[+-]?[\d,]+\.?\d*%$')
+    _PERCENT_PLACEHOLDERS = {'n/a', '-', '\u2013', '\u2014'}
+
+    # VTMR: a bare number, optionally with a k/m/b/t suffix, no "$" and no "%".
+    _PLAIN_NUMBER_RE = re.compile(r'^\d*\.?\d+[kKmMbBtT]?$')
 
     IGNORE_KEYWORDS = {
         'page', 'coinalyze', 'contract', 'filter', 'column',
         'mkt cap', 'vol 24h', 'vtmr', 'coins', 'all contracts', 'custom metrics', 'watchlists',
-        'open interest - funding rate - liquidations'
+        'open interest - funding rate - liquidations',
     }
 
     _SUFFIX_MULT = {'k': 1e3, 'm': 1e6, 'b': 1e9, 't': 1e12}
@@ -56,116 +60,213 @@ class PDFParser:
     def _to_float(pct_str: Optional[str]) -> Optional[float]:
         if not pct_str:
             return None
-        cleaned = pct_str.replace("%", "").strip()
-        if cleaned in ("-", "–", "—", "") or cleaned.lower() == "n/a":
+        cleaned = pct_str.replace("%", "").replace("$", "").strip()
+        if cleaned in ("-", "\u2013", "\u2014", "") or cleaned.lower() == "n/a":
             return None
         try:
             return float(cleaned)
         except Exception:
             return None
 
-    # --- Name/Ticker Extraction ---
+    # --- Token classifiers ---
 
-    @staticmethod
-    def _extract_name_ticker(line: str) -> Optional[Tuple[str, str]]:
-        """Extract (name, ticker) when both sit on a single line (PC layout)."""
-        line = line.strip()
-        if not line:
+    @classmethod
+    def _is_currency(cls, tok: str) -> bool:
+        return tok.lower() == 'n/a' or bool(cls._CURRENCY_RE.match(tok))
+
+    @classmethod
+    def _is_percent_or_placeholder(cls, tok: str) -> bool:
+        return tok.lower() in cls._PERCENT_PLACEHOLDERS or bool(cls._PERCENT_RE.match(tok))
+
+    @classmethod
+    def _is_vtmr(cls, tok: str) -> bool:
+        return bool(cls._PLAIN_NUMBER_RE.match(tok))
+
+    # --- Block grouping ---
+
+    @classmethod
+    def _group_into_blocks(cls, words) -> List[List[str]]:
+        by_block: "dict[int, list]" = {}
+        order: List[int] = []
+        for w in words:
+            x0, y0, x1, y1, text, bno, lno, wno = w
+            if not text.strip():
+                continue
+            if bno not in by_block:
+                by_block[bno] = []
+                order.append(bno)
+            by_block[bno].append((lno, wno, text))
+
+        blocks = []
+        for bno in order:
+            items = sorted(by_block[bno], key=lambda t: (t[0], t[1]))
+            blocks.append([t for _, _, t in items])
+        return blocks
+
+    # --- Trailing-financial-tail consumption --- #
+
+    @classmethod
+    def _consume_financial_tail(cls, toks: List[str]) -> Optional[dict]:
+        toks = toks[:]
+
+        if not toks or not cls._is_vtmr(toks[-1]):
             return None
+        vtmr_tok = toks.pop()
 
-        if ' ' in line:
-            parts = line.rsplit(' ', 1)
-            if len(parts) == 2:
-                name, ticker = parts
-                name = name.strip()
-                ticker = ticker.strip()
-                if name and ticker:
-                    if ticker.isupper() or not ticker.isascii():
-                        return (name, ticker)
+        percents_popped: List[str] = []
+        while toks and cls._is_percent_or_placeholder(toks[-1]) and len(percents_popped) < 2:
+            percents_popped.append(toks.pop())
 
-        ascii_match = re.search(r'(.+?)([A-Z0-9]{1,10})$', line)
-        if ascii_match:
-            name, ticker = ascii_match.groups()
-            if name and not name.isupper() and len(name) >= 2:
-                return (name.strip(), ticker)
+        if len(percents_popped) == 2:
+            fund_str, oi_str = percents_popped[0], percents_popped[1]
+        elif len(percents_popped) == 1:
+            oi_str, fund_str = percents_popped[0], None
+        else:
+            oi_str = fund_str = None
 
-        cjk_match = re.search(
-            r'(.+?)([\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]{1,4})$',
-            line
+        if len(toks) < 2 or not cls._is_currency(toks[-1]) or not cls._is_currency(toks[-2]):
+            return None
+        vol_tok = toks.pop()
+        mc_tok = toks.pop()
+
+        return {
+            'remaining': toks,
+            'market_cap': mc_tok.replace('$', '').replace(',', ''),
+            'volume': vol_tok.replace('$', '').replace(',', ''),
+            'vtmr': cls._to_number(vtmr_tok),
+            'oi_pct': cls._to_float(oi_str),
+            'funding_pct': cls._to_float(fund_str),
+        }
+
+    @classmethod
+    def _is_ignorable(cls, tokens: List[str]) -> bool:
+        joined_lower = ' '.join(tokens).lower()
+        if any(k in joined_lower for k in cls.IGNORE_KEYWORDS):
+            return True
+        # Some PDF exports render logo/wordmark text as individually spaced
+        compact = re.sub(r'\s+', '', joined_lower)
+        return any(k.replace(' ', '') in compact for k in cls.IGNORE_KEYWORDS)
+
+    @classmethod
+    def _looks_like_ticker(cls, tok: str) -> bool:
+        if not tok or len(tok) > 15:
+            return False
+        if not tok.isascii():
+            # CJK/other-script tickers are fine, but reject pure symbols/icons
+            return any(ch.isalnum() for ch in tok)
+        if tok.isdigit():
+            return True
+        return bool(re.fullmatch(r'[A-Z0-9]{1,10}', tok))
+
+    @classmethod
+    def _try_full_row(cls, tokens: List[str]) -> Optional[TokenData]:
+        """PC layout: name + ticker + all 5 financial fields in one block."""
+        parsed = cls._consume_financial_tail(tokens)
+        if parsed is None:
+            return None
+        remaining = parsed['remaining']
+        if not remaining:
+            return None
+        ticker_tok = remaining[-1]
+        if not cls._looks_like_ticker(ticker_tok):
+            return None
+        name = ' '.join(remaining[:-1]).strip()
+        if not name or not ticker_tok:
+            return None
+        return TokenData(
+            ticker=ticker_tok, name=name,
+            market_cap=parsed['market_cap'], volume=parsed['volume'],
+            vtmr=parsed['vtmr'], oi_pct=parsed['oi_pct'], funding_pct=parsed['funding_pct'],
         )
-        if cjk_match:
-            name, ticker = cjk_match.groups()
-            if name:
-                return (name.strip(), ticker)
-
-        return None
 
     @classmethod
-    def _clean_ticker_strict(cls, text: Optional[str]) -> Optional[str]:
-        """Validate that `text` is a standalone ticker occupying its own line."""
-        if not text or not text.strip():
+    def _try_financial_only(cls, tokens: List[str]) -> Optional[dict]:
+        """Mobile layout, right column: just the 5 financial fields."""
+        parsed = cls._consume_financial_tail(tokens)
+        if parsed is None or parsed['remaining']:
             return None
-        text = text.strip()
-        if ' ' in text:
-            return None
-        if text.isascii() and not text.isupper():
-            return None
-        cleaned = re.sub(rf'[^{cls._TICKER_KEEP}]', '', text)
-        if 1 <= len(cleaned) <= 15:
-            return cleaned
-        return None
+        return parsed
 
     @classmethod
-    def _pair_lines(cls, raw_text_lines: List[str]) -> List[Tuple[str, str]]:
-        """
-        Pair name/ticker across both PC (single-line) and Android
-        (stacked, possibly multi-line-name) layouts.
-        """
-        pairs: List[Tuple[str, str]] = []
-        buffer: List[str] = []
-        i = 0
-        n = len(raw_text_lines)
-
-        while i < n:
-            line = raw_text_lines[i]
-            next_line = raw_text_lines[i + 1] if i + 1 < n else None
-            next_ticker = cls._clean_ticker_strict(next_line) if next_line else None
-
-            if next_ticker:
-                buffer.append(line)
-                name = ' '.join(buffer).strip()
-                pairs.append((name, next_ticker))
-                buffer = []
-                i += 2
-                continue
-
-            pair = cls._extract_name_ticker(line)
-            if pair and not buffer:
-                pairs.append(pair)
-                i += 1
-                continue
-
-            buffer.append(line)
-            i += 1
-
-        return pairs
+    def _try_name_ticker_only(cls, tokens: List[str]) -> Optional[Tuple[str, str]]:
+        """Mobile layout, left column: wrapped name lines + trailing ticker."""
+        if len(tokens) < 2:
+            return None
+        # A financial-shaped block must never be accepted here.
+        if cls._is_vtmr(tokens[-1]) and cls._consume_financial_tail(tokens) is not None:
+            return None
+        ticker_tok = tokens[-1]
+        if not cls._looks_like_ticker(ticker_tok):
+            return None
+        name = ' '.join(tokens[:-1]).strip()
+        if not name or not ticker_tok:
+            return None
+        return name, ticker_tok
 
     # --- Core Extraction Logic ---
 
     @classmethod
+    def _parse_page(cls, blocks: List[List[str]]) -> List[TokenData]:
+        full_rows: List[TokenData] = []
+        financial_entries: List[dict] = []
+        name_entries: List[Tuple[str, str]] = []
+
+        for tokens in blocks:
+            if cls._is_ignorable(tokens):
+                continue
+
+            full_row = cls._try_full_row(tokens)
+            if full_row is not None:
+                full_rows.append(full_row)
+                continue
+
+            fin = cls._try_financial_only(tokens)
+            if fin is not None:
+                financial_entries.append(fin)
+                continue
+
+            name_pair = cls._try_name_ticker_only(tokens)
+            if name_pair is not None:
+                name_entries.append(name_pair)
+                continue
+            # else: page furniture / unrecognized block — skip silently.
+
+        if financial_entries or name_entries:
+            if len(financial_entries) != len(name_entries):
+                print(
+                    f"   WARNING: page has {len(name_entries)} name/ticker blocks but "
+                    f"{len(financial_entries)} financial blocks - mismatch, positional "
+                    f"pairing below is likely misaligned and data may be silently dropped/mixed up"
+                )
+            limit = min(len(financial_entries), len(name_entries))
+            for k in range(limit):
+                name, ticker = name_entries[k]
+                fin = financial_entries[k]
+                full_rows.append(TokenData(
+                    ticker=ticker, name=name,
+                    market_cap=fin['market_cap'], volume=fin['volume'],
+                    vtmr=fin['vtmr'], oi_pct=fin['oi_pct'], funding_pct=fin['funding_pct'],
+                ))
+
+        return full_rows
+
+    @classmethod
     def extract(cls, path) -> pd.DataFrame:
         print(f"   Parsing Futures PDF: {path.name}")
-        if pypdf is None:
-            print("   pypdf not available - PDF parsing disabled.")
+        if fitz is None:
+            print("   pymupdf not available - PDF parsing disabled.")
             return pd.DataFrame()
+
         data: List[TokenData] = []
         try:
-            reader = pypdf.PdfReader(path)
-            for page in reader.pages:
-                raw = page.extract_text() or ""
-                lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
-                page_data = cls._parse_page_smart(lines)
-                data.extend(page_data)
+            doc = fitz.open(path)
+            for page in doc:
+                words = page.get_text("words")
+                blocks = cls._group_into_blocks(words)
+                page_tokens = cls._parse_page(blocks)
+                data.extend(page_tokens)
+                print(f"   Page parsed: {len(page_tokens)} rows")
+
             print(f"   Extracted {len(data)} futures tokens")
             if not data:
                 return pd.DataFrame()
@@ -198,49 +299,3 @@ class PDFParser:
             return None
         print(f"   Futures data parsed: {csv_path.name}")
         return csv_path
-
-    @classmethod
-    def _parse_page_smart(cls, lines: List[str]) -> List[TokenData]:
-        financials = []
-        raw_text_lines = []
-
-        for line in lines:
-            if any(k in line.lower() for k in cls.IGNORE_KEYWORDS):
-                continue
-
-            fin_match = cls.FINANCIAL_PATTERN.search(line)
-            if fin_match:
-                groups = fin_match.groups()
-                mc = groups[0].replace('$', '').replace(',', '')
-                vol = groups[1].replace('$', '').replace(',', '')
-                oi_str = groups[2]
-                fund_str = groups[3]
-                vtmr = groups[4]
-                try:
-                    cls._to_number(vtmr)
-                    financials.append((mc, vol, vtmr, oi_str, fund_str))
-                except Exception:
-                    raw_text_lines.append(line)
-            else:
-                if not line.isdigit() and len(line) > 1:
-                    raw_text_lines.append(line)
-
-        token_pairs = cls._pair_lines(raw_text_lines)
-
-        tokens: List[TokenData] = []
-        limit = min(len(token_pairs), len(financials))
-
-        for k in range(limit):
-            name, ticker = token_pairs[k]
-            mc, vol, vtmr, oi_pct_str, fund_pct_str = financials[k]
-
-            tokens.append(TokenData(
-                ticker=ticker,
-                name=name,
-                market_cap=mc,
-                volume=vol,
-                vtmr=cls._to_number(vtmr),
-                oi_pct=cls._to_float(oi_pct_str),
-                funding_pct=cls._to_float(fund_pct_str),
-            ))
-        return tokens

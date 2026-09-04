@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quantvat-shell-v5';
+const CACHE_NAME = 'quantvat-shell-v6';
 const STATIC_ASSETS = [
   '/static/icons/icon-192.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap'
@@ -8,7 +8,9 @@ const NEVER_CACHE_PREFIXES = [
   '/api/', '/tasks/', '/dashboard', '/settings', '/journal',
   '/reports', '/admin', '/deep-diver', '/setup', '/watchlist',
   '/save-config', '/save-filters', '/reset-filters', '/factory-reset',
-  '/login', '/register', '/reset-password', '/logout'
+  '/login', '/register', '/reset-password', '/logout',
+  '/run-spot', '/run-advanced', '/progress', '/logs-chunk',
+  '/get-futures-data', '/upload-futures', '/quant-diver'
 ];
 
 // Cache each asset independently so one failure doesn't block the rest

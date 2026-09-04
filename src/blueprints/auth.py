@@ -2,7 +2,7 @@ import functools
 import requests
 import time
 from collections import defaultdict
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 
 from ..config import FIREBASE_WEB_API_KEY
 
@@ -13,8 +13,7 @@ LOGIN_ATTEMPTS = defaultdict(list)
 MAX_ATTEMPTS = 5
 WINDOW_SECONDS = 300  # 5 minutes
 
-# Periodically drop IPs with no attempts left in the window so this dict
-# doesn't grow forever across the process lifetime.
+# Periodically drop IPs with no attempts left 
 _SWEEP_INTERVAL = 600  # 10 minutes
 _last_sweep = [0.0]
 
@@ -42,6 +41,12 @@ def login_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            wants_json = (
+                request.path.startswith('/api/')
+                or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            )
+            if wants_json:
+                return jsonify({"error": "Session expired. Please log in again."}), 401
             # Capture the full path the user was trying to access
             return redirect(url_for('auth.login', next=request.full_path))
         return f(*args, **kwargs)
@@ -62,7 +67,10 @@ def login():
         if FIREBASE_WEB_API_KEY:
             # Exchange password for auth token via Google Identity Toolkit
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
-            resp = requests.post(url, json={"email": email, "password": password, "returnSecureToken": True})
+            try:
+                resp = requests.post(url, json={"email": email, "password": password, "returnSecureToken": True}, timeout=10)
+            except requests.exceptions.RequestException:
+                return render_template("auth/login.html", mode="login", error="Authentication service is unavailable. Please try again.")
             
             if resp.status_code == 200:
                 # Activate the 30-day persistent session
@@ -73,8 +81,6 @@ def login():
                 next_page = request.args.get('next')
                 
                 # Security Check: Ensure 'next_page' is a relative, same-site path.
-                # Reject scheme-relative URLs like "//evil.com" or "/\evil.com",
-                # which browsers treat as protocol-relative redirects off-site.
                 if (
                     not next_page
                     or not next_page.startswith('/')
@@ -104,7 +110,10 @@ def register():
         
         if FIREBASE_WEB_API_KEY:
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_WEB_API_KEY}"
-            resp = requests.post(url, json={"email": email, "password": password, "returnSecureToken": True})
+            try:
+                resp = requests.post(url, json={"email": email, "password": password, "returnSecureToken": True}, timeout=10)
+            except requests.exceptions.RequestException:
+                return render_template("auth/register.html", mode="register", error="Registration service is unavailable. Please try again.")
             if resp.status_code == 200:
                 session.permanent = True
                 session['user_id'] = resp.json()['localId']
@@ -128,7 +137,10 @@ def reset_password():
             return render_template("auth/reset.html", mode="reset", error="Please enter your email.")
         if FIREBASE_WEB_API_KEY:
             url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FIREBASE_WEB_API_KEY}"
-            resp = requests.post(url, json={"requestType": "PASSWORD_RESET", "email": email})
+            try:
+                resp = requests.post(url, json={"requestType": "PASSWORD_RESET", "email": email}, timeout=10)
+            except requests.exceptions.RequestException:
+                return render_template("auth/reset.html", mode="reset", error="Password reset service is unavailable. Please try again.")
             if resp.status_code == 200:
                 return render_template("auth/reset.html", mode="reset", success="Password reset email sent!")
             else:

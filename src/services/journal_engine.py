@@ -4,22 +4,33 @@ import os
 import re
 import uuid
 import datetime
-import pandas as pd
+from PIL import Image
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
-from ..config import get_user_keys, update_user_keys
+from ..config import get_user_keys, update_user_keys, firestore
 
-# Drive scope for application-specific data
-SCOPES = ['https://www.googleapis.com/auth/drive.appdata']
+# drive.file only — creates/reads the visible "Trading Journal" folder tree in My Drive.
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.file',
+]
+
+FOLDER_MIME = 'application/vnd.google-apps.folder'
+
 
 class JournalEngine:
+    ROOT_FOLDER_NAME = "Trading Journal"
+    MODE_FOLDER_NAMES = {"normal": "Spot", "meme": "Meme"}
+    VALID_MODES = ("normal", "meme")
+    IMAGE_SLOTS = ("before", "after")
+    MAX_IMAGE_DIMENSION = 1600  # longest side, px
+
+    # --- Auth ---
     @staticmethod
     def get_flow():
-        # Only relax oauthlib's HTTPS enforcement when the configured redirect
         redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "")
         if redirect_uri.startswith("http://"):
             os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -40,17 +51,16 @@ class JournalEngine:
 
     @staticmethod
     def get_creds(uid):
-        # Load and parse user credentials from database
         user_data = get_user_keys(uid)
         token_json = user_data.get("google_token_json")
-        if not token_json: return None
+        if not token_json:
+            return None
         try:
             creds = Credentials.from_authorized_user_info(json.loads(token_json))
         except Exception as e:
             print(f"⚠️ Token Load Error: {e}")
             return None
 
-        # The stored token snapshot is only ever written once
         if creds.expired and creds.refresh_token:
             try:
                 creds.refresh(GoogleAuthRequest())
@@ -62,13 +72,20 @@ class JournalEngine:
         return creds
 
     @staticmethod
-    def get_drive_service(creds):
-        # Initialize Google Drive API client
-        return build('drive', 'v3', credentials=creds)
+    def has_drive_file_scope(creds) -> bool:
+        # True only if the connected token actually carries drive.file scope.
+        if not creds:
+            return False
+        scopes = set(getattr(creds, 'scopes', None) or [])
+        return 'https://www.googleapis.com/auth/drive.file' in scopes
 
     @staticmethod
+    def get_drive_service(creds):
+        return build('drive', 'v3', credentials=creds)
+
+    # --- Low-level file I/O ---
+    @staticmethod
     def load_journal(service, file_id):
-        # Download journal.json from Drive and parse to list
         try:
             request = service.files().get_media(fileId=file_id)
             fh = io.BytesIO()
@@ -80,7 +97,6 @@ class JournalEngine:
             return json.loads(content) if content else []
         except HttpError as e:
             if e.resp.status == 404:
-                # Cached file_id points at a file that no longer exists
                 raise
             print(f"⚠️ Journal Load Error: {e}")
             return []
@@ -90,55 +106,145 @@ class JournalEngine:
 
     @staticmethod
     def save_to_drive(service, file_id, journal_data):
-        # Upload current journal state to Drive
         media = MediaIoBaseUpload(
-            io.BytesIO(json.dumps(journal_data).encode('utf-8')), 
+            io.BytesIO(json.dumps(journal_data).encode('utf-8')),
             mimetype='application/json',
             resumable=True
         )
         service.files().update(fileId=file_id, media_body=media).execute()
 
+    # --- Folder hierarchy: My Drive/Trading Journal/{Spot,Meme}/trades.json ---
     @staticmethod
-    def initialize_journal(service, uid=None):
-        # Find existing journal or create a new one in hidden app data folder.
-        if uid:
-            cached_id = get_user_keys(uid).get("journal_drive_file_id")
-            if cached_id:
-                return cached_id
+    def _find_or_create_folder(service, name, parent_id):
+        safe_name = name.replace("'", "\\'")
+        q = (f"name='{safe_name}' and mimeType='{FOLDER_MIME}' "
+             f"and '{parent_id}' in parents and trashed=false")
+        resp = service.files().list(
+            q=q, spaces='drive', fields='files(id, name)', pageSize=1
+        ).execute()
+        files = resp.get('files', [])
+        if files:
+            return files[0]['id']
 
-        try:
-            response = service.files().list(
-                q="name='journal.json' and 'appDataFolder' in parents",
-                spaces='appDataFolder',
-                fields='files(id, name)',
-                pageSize=1
-            ).execute()
-            
-            files = response.get('files', [])
-            if files:
-                file_id = files[0]['id']
-            else:
-                file_metadata = {'name': 'journal.json', 'parents': ['appDataFolder']}
-                media = MediaIoBaseUpload(
-                    io.BytesIO(json.dumps([]).encode('utf-8')), 
-                    mimetype='application/json',
-                    resumable=True
-                )
-                file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-                file_id = file.get('id')
-
-            if uid and file_id:
-                update_user_keys(uid, {"journal_drive_file_id": file_id})
-            return file_id
-        except Exception as e:
-            print(f"⚠️ Journal Init Error: {e}")
-            raise e
+        meta = {'name': name, 'mimeType': FOLDER_MIME, 'parents': [parent_id]}
+        folder = service.files().create(body=meta, fields='id').execute()
+        return folder.get('id')
 
     @classmethod
-    def save_trade(cls, service, file_id, trade_data):
-        # Add new trade with ID/date tags or update existing record
-        journal = cls.load_journal(service, file_id)
-        
+    def get_root_folder_id(cls, service, uid, user_data=None):
+        # Lazily creates/returns "Trading Journal" under the user's chosen parent (default My Drive root).
+        if user_data is None:
+            user_data = get_user_keys(uid)
+        cached = user_data.get("journal_root_folder_id")
+        if cached:
+            return cached
+
+        parent_id = user_data.get("journal_parent_folder_id") or 'root'
+        folder_id = cls._find_or_create_folder(service, cls.ROOT_FOLDER_NAME, parent_id)
+        update_user_keys(uid, {"journal_root_folder_id": folder_id})
+        user_data["journal_root_folder_id"] = folder_id
+        return folder_id
+
+    @classmethod
+    def get_mode_folder_id(cls, service, uid, mode, user_data=None):
+        if mode not in cls.VALID_MODES:
+            raise ValueError(f"Invalid journal mode: {mode}")
+        if user_data is None:
+            user_data = get_user_keys(uid)
+
+        cache_key = f"journal_{mode}_folder_id"
+        cached = user_data.get(cache_key)
+        if cached:
+            return cached
+
+        root_id = cls.get_root_folder_id(service, uid, user_data=user_data)
+        folder_id = cls._find_or_create_folder(service, cls.MODE_FOLDER_NAMES[mode], root_id)
+        update_user_keys(uid, {cache_key: folder_id})
+        user_data[cache_key] = folder_id
+        return folder_id
+
+    @classmethod
+    def get_charts_folder_id(cls, service, uid, mode, month_str, user_data=None):
+        # Lazily creates <ModeFolder>/charts/<YYYY-MM>.
+        if user_data is None:
+            user_data = get_user_keys(uid)
+
+        cache_key = f"journal_{mode}_charts_{month_str}_folder_id"
+        cached = user_data.get(cache_key)
+        if cached:
+            return cached
+
+        mode_folder_id = cls.get_mode_folder_id(service, uid, mode, user_data=user_data)
+        charts_root_id = cls._find_or_create_folder(service, "charts", mode_folder_id)
+        month_folder_id = cls._find_or_create_folder(service, month_str, charts_root_id)
+        update_user_keys(uid, {cache_key: month_folder_id})
+        user_data[cache_key] = month_folder_id
+        return month_folder_id
+
+    @classmethod
+    def get_trades_file_id(cls, service, uid, mode, user_data=None):
+        if user_data is None:
+            user_data = get_user_keys(uid)
+
+        cache_key = f"journal_{mode}_file_id"
+        cached = user_data.get(cache_key)
+        if cached:
+            return cached
+
+        mode_folder_id = cls.get_mode_folder_id(service, uid, mode, user_data=user_data)
+        q = f"name='trades.json' and '{mode_folder_id}' in parents and trashed=false"
+        resp = service.files().list(
+            q=q, spaces='drive', fields='files(id, name)', pageSize=1
+        ).execute()
+        files = resp.get('files', [])
+        if files:
+            file_id = files[0]['id']
+        else:
+            meta = {'name': 'trades.json', 'parents': [mode_folder_id]}
+            media = MediaIoBaseUpload(
+                io.BytesIO(json.dumps([]).encode('utf-8')),
+                mimetype='application/json',
+                resumable=True
+            )
+            file = service.files().create(body=meta, media_body=media, fields='id').execute()
+            file_id = file.get('id')
+
+        update_user_keys(uid, {cache_key: file_id})
+        user_data[cache_key] = file_id
+        return file_id
+
+    @classmethod
+    def _reset_mode_cache(cls, uid, mode, user_data=None):
+        # Clears cached folder/file ids so the next call re-resolves them (used after a stale-id 404).
+        update_user_keys(uid, {
+            f"journal_{mode}_file_id": firestore.DELETE_FIELD,
+            f"journal_{mode}_folder_id": firestore.DELETE_FIELD,
+        })
+        if user_data is not None:
+            user_data.pop(f"journal_{mode}_file_id", None)
+            user_data.pop(f"journal_{mode}_folder_id", None)
+
+    # --- Per-mode journal CRUD ---
+    @classmethod
+    def load_mode_journal(cls, service, uid, mode, user_data=None):
+        if user_data is None:
+            user_data = get_user_keys(uid)
+        file_id = cls.get_trades_file_id(service, uid, mode, user_data=user_data)
+        try:
+            return cls.load_journal(service, file_id)
+        except HttpError as e:
+            if e.resp.status != 404:
+                raise
+            cls._reset_mode_cache(uid, mode, user_data=user_data)
+            file_id = cls.get_trades_file_id(service, uid, mode, user_data=user_data)
+            return cls.load_journal(service, file_id)
+
+    @classmethod
+    def save_trade_v2(cls, service, uid, mode, trade_data, user_data=None):
+        if user_data is None:
+            user_data = get_user_keys(uid)
+
+        trade_data['mode'] = mode
         if 'trade_date' in trade_data:
             try:
                 dt = datetime.datetime.strptime(trade_data['trade_date'], "%Y-%m-%d")
@@ -147,9 +253,18 @@ class JournalEngine:
             except ValueError:
                 pass
 
+        try:
+            journal = cls.load_mode_journal(service, uid, mode, user_data=user_data)
+            file_id = cls.get_trades_file_id(service, uid, mode, user_data=user_data)
+        except HttpError as e:
+            if e.resp.status != 404:
+                raise
+            cls._reset_mode_cache(uid, mode, user_data=user_data)
+            journal = cls.load_mode_journal(service, uid, mode, user_data=user_data)
+            file_id = cls.get_trades_file_id(service, uid, mode, user_data=user_data)
+
         trade_id = trade_data.get('id')
         updated = False
-        
         if not trade_id:
             trade_data['id'] = str(uuid.uuid4())
             journal.append(trade_data)
@@ -161,49 +276,151 @@ class JournalEngine:
                     break
             if not updated:
                 journal.append(trade_data)
-                
+
         cls.save_to_drive(service, file_id, journal)
         return True
 
     @classmethod
-    def delete_trade(cls, service, file_id, trade_id):
-        # Remove trade by ID and sync with Drive
-        journal = cls.load_journal(service, file_id)
-        
+    def get_trade_by_id(cls, service, uid, mode, trade_id, user_data=None):
+        journal = cls.load_mode_journal(service, uid, mode, user_data=user_data)
+        for t in journal:
+            if str(t.get('id')) == str(trade_id):
+                return t
+        return None
+
+    @classmethod
+    def delete_trade_v2(cls, service, uid, mode, trade_id, user_data=None):
+        if user_data is None:
+            user_data = get_user_keys(uid)
+        journal = cls.load_mode_journal(service, uid, mode, user_data=user_data)
+        file_id = cls.get_trades_file_id(service, uid, mode, user_data=user_data)
+
         initial_len = len(journal)
         new_journal = [t for t in journal if str(t.get('id')) != str(trade_id)]
-        
+
         if len(new_journal) < initial_len:
             cls.save_to_drive(service, file_id, new_journal)
             return True
         return False
 
+    # --- Chart snapshots: <ModeFolder>/charts/<YYYY-MM>/<filename>.webp ---
+    @classmethod
+    def _compress_image(cls, file_stream):
+        # Re-encodes as lossless WebP, downscaling only if over MAX_IMAGE_DIMENSION.
+        img = Image.open(file_stream)
+        img.load()  # force decode now, while file_stream is still valid
+
+        if img.mode == "P":
+            img = img.convert("RGBA" if "transparency" in img.info else "RGB")
+        elif img.mode == "CMYK":
+            img = img.convert("RGB")
+        elif img.mode not in ("RGB", "RGBA", "L"):
+            img = img.convert("RGB")
+
+        w, h = img.size
+        if max(w, h) > cls.MAX_IMAGE_DIMENSION:
+            scale = cls.MAX_IMAGE_DIMENSION / float(max(w, h))
+            img = img.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
+
+        out = io.BytesIO()
+        img.save(out, format="WEBP", lossless=True, method=6)
+        out.seek(0)
+        return out
+
+    @staticmethod
+    def _sanitize_filename_part(value, max_len=20):
+        # Strips non-alphanumeric chars so a messy ticker can't break the filename.
+        cleaned = re.sub(r'[^A-Za-z0-9]+', '', value or '')
+        return cleaned.upper()[:max_len] or "TRADE"
+
+    @classmethod
+    def _resolve_unique_filename(cls, service, folder_id, trade, slot):
+        # Builds {ShortID}-{Ticker}-{Date}-{Slot}.webp, extending the id prefix on a name collision.
+        ticker = cls._sanitize_filename_part(trade.get('ticker'))
+        date_str = trade.get('trade_date') or 'nodate'
+        full_id = str(trade.get('id', '')).replace('-', '').upper() or "0" * 32
+
+        for length in range(5, len(full_id) + 1):
+            short_id = full_id[:length]
+            filename = f"{short_id}-{ticker}-{date_str}-{slot.capitalize()}.webp"
+            safe_name = filename.replace("\\", "\\\\").replace("'", "\\'")
+            query = f"name = '{safe_name}' and '{folder_id}' in parents and trashed = false"
+            existing = service.files().list(q=query, fields='files(id)', pageSize=1).execute()
+            if not existing.get('files'):
+                return filename
+
+        # Unreachable in practice — a full UUID can't collide with itself.
+        return f"{full_id}-{ticker}-{date_str}-{slot.capitalize()}.webp"
+
+    @classmethod
+    def upload_chart_image(cls, service, uid, mode, trade, slot, file_stream, user_data=None):
+        # Compresses + uploads a before/after snapshot for an already-saved trade; deletes any prior file in that slot first.
+        if slot not in cls.IMAGE_SLOTS:
+            raise ValueError(f"Invalid image slot: {slot}")
+        if user_data is None:
+            user_data = get_user_keys(uid)
+
+        month_str = trade.get('month')
+        if not month_str:
+            month_str = datetime.datetime.strptime(
+                trade['trade_date'], "%Y-%m-%d"
+            ).strftime("%Y-%m")
+
+        folder_id = cls.get_charts_folder_id(service, uid, mode, month_str, user_data=user_data)
+
+        old_id = trade.get(f"{slot}_image_id")
+        if old_id:
+            cls.delete_chart_image(service, old_id)
+
+        compressed = cls._compress_image(file_stream)
+        filename = cls._resolve_unique_filename(service, folder_id, trade, slot)
+        meta = {'name': filename, 'parents': [folder_id]}
+        media = MediaIoBaseUpload(compressed, mimetype='image/webp', resumable=True)
+        file = service.files().create(body=meta, media_body=media, fields='id').execute()
+        return file.get('id')
+
+    @staticmethod
+    def delete_chart_image(service, file_id):
+        # Best-effort — a 404 (already gone) is not an error worth surfacing.
+        try:
+            service.files().delete(fileId=file_id).execute()
+            return True
+        except HttpError as e:
+            if e.resp.status == 404:
+                return True
+            print(f"⚠️ Chart image delete error: {e}")
+            return False
+        except Exception as e:
+            print(f"⚠️ Chart image delete error: {e}")
+            return False
+
+    # --- Stats ---
     @staticmethod
     def parse_pnl(pnl_str):
-        # Clean PnL string and convert to float
         try:
             clean = re.sub(r'[^\d\.-]', '', str(pnl_str))
             return float(clean) if clean else 0.0
-        except: return 0.0
+        except Exception:
+            return 0.0
 
     @classmethod
     def calculate_stats(cls, journal_data):
-        # Compute winrate, best trade, and dominant bias
-        if not journal_data: return {"winrate": "0%", "best_trade": "--", "bias": "Neutral"}
-        
+        if not journal_data:
+            return {"winrate": "0%", "best_trade": "--", "bias": "Neutral"}
+
         wins = [t for t in journal_data if cls.parse_pnl(t.get('pnl', 0)) > 0]
         total = len(journal_data)
         winrate = (len(wins) / total) * 100 if total > 0 else 0
-        
+
         best_trade = max(journal_data, key=lambda x: cls.parse_pnl(x.get('pnl', 0)), default={})
-        
+
         biases = []
         for t in journal_data:
-            if t.get('bias'): 
+            if t.get('bias'):
                 biases.append(t.get('bias'))
             elif 'rules_followed' in t:
                 biases.append("Disciplined" if str(t['rules_followed']) == "true" else "Mistake")
-                
+
         main_bias = max(set(biases), key=biases.count) if biases else "Neutral"
 
         return {

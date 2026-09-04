@@ -2,6 +2,7 @@ import threading
 import sys
 import os
 import json
+import uuid
 from pathlib import Path
 from typing import Optional
 import datetime
@@ -18,11 +19,21 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 # --- Helper Functions for State ---
 def get_progress(uid):
     with LOCK:
-        return USER_PROGRESS.get(uid, {"percent": 0, "text": "System Idle", "status": "idle"})
+        return USER_PROGRESS.get(uid, {"percent": 0, "text": "System Idle", "status": "idle", "run_id": None})
 
 def update_progress(uid, percent, text, status):
     with LOCK:
-        USER_PROGRESS[uid] = {"percent": percent, "text": text, "status": status}
+        # Preserve whatever run_id is already associated with this uid 
+        existing_run_id = USER_PROGRESS.get(uid, {}).get("run_id")
+        USER_PROGRESS[uid] = {"percent": percent, "text": text, "status": status, "run_id": existing_run_id}
+
+def start_new_run(uid) -> str:
+    """Call this exactly once at the start of a new background run"""
+    run_id = uuid.uuid4().hex
+    with LOCK:
+        USER_LOGS[uid] = []
+        USER_PROGRESS[uid] = {"percent": 5, "text": "Initializing Engine...", "status": "active", "run_id": run_id}
+    return run_id
 
 def get_user_temp_dir(uid) -> Path:
     """Creates and returns a specific directory for the logged-in user."""
@@ -52,7 +63,7 @@ def _write_manifest(uid, data: dict):
     try:
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
-        os.replace(tmp_path, path)  # atomic on POSIX
+        os.replace(tmp_path, path) 
     except Exception as e:
         print(f"   Could not write manifest for {uid}: {e}")
 

@@ -8,20 +8,18 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libharfbuzz0b \
+    fonts-liberation \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# CONFIGURE PLAYWRIGHT
-# Set a global path for browsers so both Root (builder) and User (runner) can find them
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH
-
-# Install the necessary system dependencies and the Chromium browser
-RUN playwright install-deps chromium
-RUN playwright install chromium
 
 # Copy Application Code
 COPY . .
@@ -29,14 +27,13 @@ COPY . .
 # Create and Switch to Non-Root User
 RUN useradd -m -u 1000 user
 
-# Ensure the user has permissions to access the browsers
-RUN chmod -R 755 $PLAYWRIGHT_BROWSERS_PATH
-
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
+ENV PYTHONUNBUFFERED=1
+
 # 6. Run the App
 EXPOSE 7860
-# Single worker
+# Single worker (the app keeps per-user progress/log/task state in plain
 CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "1", "--threads", "8", "--timeout", "120", "app:app"]

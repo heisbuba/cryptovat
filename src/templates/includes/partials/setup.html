@@ -1,9 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Setup Wizard - QuantVAT{% endblock %} 
-{% block description %}Welcome to QuantVAT one-time setup wizard. Configure your API keys and VTMR URL to unlock the full potential of the latest version of this toolkit.{% endblock %} 
-{% block og_title %}Setup Wizard - QuantVAT{% endblock %} 
-{% block og_description %}Welcome to QuantVAT one-time setup wizard. Configure your API keys and VTMR URL to unlock the full potential of the latest version of this toolkit.{% endblock %} 
-{% block keywords %}register, secure access, crypto dashboard, cryptovat, trading tools{% endblock %} 
 {% block extra_css %}
 <style>
   /* --- SETUP GUIDE BOX --- */
@@ -95,22 +91,16 @@
     </h1>
     
     <div class="card">
-        <p>Welcome to <b>QuantVAT</b> one-time setup wizard. Configure your API keys and VTMR URL to unlock the full potential of the latest version of this kit.</p>
+        <p>Welcome to <b>QuantVAT</b> one-time setup wizard. Configure your API key and VTMR URL to unlock the full potential our tool.</p>
         </div>
 
     <form action="{{ url_for('main.save_config') }}" method="POST" id="setupForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card">
-            <h2 style="color: var(--accent-green);">API Keys Setup</h2>
+            <h2 style="color: var(--accent-green);">API Key Setup</h2>
             
-            <label>CoinMarketCap Key <a href="https://pro.coinmarketcap.com/signup/" target="_blank" class="get-key-link">Get Key ↗</a></label>
-            <input type="text" name="cmc_key" value="{{ cmc }}" placeholder="Paste CMC Key here..." autocomplete="off">
-
-           <label style="margin-top:15px; display:block;">CoinGecko Key <a href="https://www.coingecko.com/en/developers/dashboard" target="_blank" class="get-key-link">Get Demo Key ↗</a></label>
+            <label>CoinGecko Key <a href="https://www.coingecko.com/en/developers/dashboard" target="_blank" class="get-key-link">Get Demo Key ↗</a></label>
             <input type="text" name="cg_key" value="{{ cg }}" placeholder="Paste CG Key here..." autocomplete="off">
-
-            <label style="margin-top:15px; display:block;">LiveCoinWatch Key <a href="https://www.livecoinwatch.com/tools/api" target="_blank" class="get-key-link">Get Key ↗</a></label>
-            <input type="text" name="lcw_key" value="{{ lcw }}" placeholder="Paste LCW Key here..." autocomplete="off">
 
         </div>
 
@@ -196,9 +186,7 @@
     }
 
     inputs.forEach(input => {
-        // Save when user leaves the field
         input.addEventListener('blur', autoSave);
-        // Debounced save while typing (1.2s pause)
         input.addEventListener('input', () => {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(autoSave, 1200);

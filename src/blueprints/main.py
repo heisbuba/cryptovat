@@ -2,13 +2,13 @@ import os
 from datetime import datetime
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_from_directory, make_response, jsonify
 from googleapiclient.errors import HttpError
+from firebase_admin import auth as firebase_auth
 
 from ..config import get_user_keys, update_user_keys, is_user_setup_complete, db, get_global_stats, increment_global_stat, firestore
 from ..state import USER_PROGRESS, get_user_temp_dir, TEMP_DIR
 from .auth import login_required
 from ..services.journal_engine import JournalEngine
 from ..services.ai_modal_engine import AiModalEngine
-from ..services import screener_engine
 
 main_bp = Blueprint('main', __name__)
 
@@ -49,9 +49,7 @@ def setup():
     uid = session['user_id']
     current_keys = get_user_keys(uid)
     return render_template("includes/partials/setup.html",
-        cmc=current_keys.get("CMC_API_KEY", ""),
         cg=current_keys.get("COINGECKO_API_KEY", ""),
-        lcw=current_keys.get("LIVECOINWATCH_API_KEY", ""),
         vtmr=current_keys.get("COINALYZE_VTMR_URL", "")
     )
 
@@ -60,16 +58,29 @@ def setup():
 def settings():
     uid = session['user_id']
     current_keys = get_user_keys(uid)
-    # Check if Google OAuth flow was completed
     drive_linked = "google_refresh_token" in current_keys
     return render_template("dashboard/settings.html",
-        cmc=current_keys.get("CMC_API_KEY", ""),
         cg=current_keys.get("COINGECKO_API_KEY", ""),
-        lcw=current_keys.get("LIVECOINWATCH_API_KEY", ""),
         vtmr=current_keys.get("COINALYZE_VTMR_URL", ""),
         drive_linked=drive_linked,
+        journal_mode_pref=current_keys.get("journal_mode_pref", "both"),
         user_settings=current_keys
     )
+
+@main_bp.route("/settings/save_journal_mode", methods=["POST"])
+@login_required
+def save_journal_mode():
+    uid = session['user_id']
+    mode_pref = request.form.get("journal_mode_pref", "both")
+    if mode_pref not in ("normal", "meme", "both"):
+        mode_pref = "both"
+
+    if update_user_keys(uid, {"journal_mode_pref": mode_pref}):
+        flash("Journal mode preference updated!", "success")
+    else:
+        flash("Could not save journal mode preference.", "error")
+
+    return redirect(url_for('main.settings'))
 
 @main_bp.route("/save-config", methods=["POST"])
 @login_required
@@ -80,9 +91,7 @@ def save_config():
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     keys = {
-        "CMC_API_KEY": request.form.get("cmc_key", "").strip(),
         "COINGECKO_API_KEY": request.form.get("cg_key", "").strip(),
-        "LIVECOINWATCH_API_KEY": request.form.get("lcw_key", "").strip(),
         "COINALYZE_VTMR_URL": request.form.get("vtmr_url", "").strip()
     }
     
@@ -96,17 +105,14 @@ def save_config():
             current_keys = get_user_keys(uid)
             drive_linked = "google_refresh_token" in current_keys
             return render_template("dashboard/settings.html",
-                cmc=keys["CMC_API_KEY"],
                 cg=keys["COINGECKO_API_KEY"],
-                lcw=keys["LIVECOINWATCH_API_KEY"],
                 vtmr=keys["COINALYZE_VTMR_URL"],
                 drive_linked=drive_linked,
+                journal_mode_pref=current_keys.get("journal_mode_pref", "both"),
                 user_settings=current_keys
             )
         return render_template("includes/partials/setup.html",
-            cmc=keys["CMC_API_KEY"],
             cg=keys["COINGECKO_API_KEY"],
-            lcw=keys["LIVECOINWATCH_API_KEY"],
             vtmr=keys["COINALYZE_VTMR_URL"]
         )
 
@@ -129,17 +135,34 @@ def save_config():
 @main_bp.route("/factory-reset", methods=["POST"])
 @login_required
 def factory_reset():
-    # Clear all API configuration keys for user
     uid = session['user_id']
     update_user_keys(uid, {
-        "CMC_API_KEY": "",
         "COINGECKO_API_KEY": "",
-        "LIVECOINWATCH_API_KEY": "",
         "COINALYZE_VTMR_URL": "",
-        "gemini_key": "",         
+        "gemini_key": "",
         "ai_history": []
     })
     return redirect(url_for('main.setup'))
+
+@main_bp.route("/delete-account", methods=["POST"])
+@login_required
+def delete_account():
+    uid = session['user_id']
+    try:
+        firebase_auth.delete_user(uid)  # irreversible step — abort on failure, don't touch Firestore
+    except Exception as e:
+        print(f"Delete Account Auth Error: {e}")
+        flash(f"Account deletion failed: {str(e)}", "error")
+        return redirect(url_for('main.settings'))
+
+    try:
+        db.collection('users').document(uid).delete()  # best-effort — Auth account is already gone either way
+    except Exception as e:
+        print(f"Delete Account Firestore Error: {e}")
+
+    session.clear()
+    flash("Your account has been permanently deleted.", "success")
+    return redirect(url_for('main.index'))
 
 @main_bp.route("/help")
 def help_page():
@@ -158,69 +181,6 @@ def deep_diver():
     if not is_user_setup_complete(uid):
         return redirect(url_for('main.setup'))
     return render_template("dashboard/deep_diver.html")
-
-# --- Token Screener --- #
-
-@main_bp.route("/screener")
-@login_required
-def token_screener():
-    uid = session['user_id']
-    if not is_user_setup_complete(uid):
-        return redirect(url_for('main.setup'))
-
-    user_data = get_user_keys(uid)
-    api_key = user_data.get("COINGECKO_API_KEY", "")
-    watchlist = user_data.get('watchlist', [])
-    watched_ids = {item.get('coin_id') for item in watchlist}
-
-    # Filter form is a GET submit — presence of any DEFAULT_FILTERS keys
-    for key in screener_engine.DEFAULT_FILTERS:
-        if key in request.args:
-            session[f"{screener_engine.SESSION_PREFIX}{key}"] = request.args[key]
-
-    form_submitted = any(k in request.args for k in screener_engine.DEFAULT_FILTERS)
-    if form_submitted:
-        session[f"{screener_engine.SESSION_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}"] = (
-            "1" if screener_engine.INCLUDE_NO_1Y_KEY in request.args else "0"
-        )
-        
-        profile_updates = {
-            f"{screener_engine.PROFILE_PREFIX}{key}": request.args[key]
-            for key in screener_engine.DEFAULT_FILTERS if key in request.args
-        }
-        profile_updates[f"{screener_engine.PROFILE_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}"] = (
-            "1" if screener_engine.INCLUDE_NO_1Y_KEY in request.args else "0"
-        )
-        update_user_keys(uid, profile_updates)
-        flash("Filters applied and saved.", "success")
-
-    filters = {
-        k: screener_engine.resolve_filter(k, session, user_data)
-        for k in screener_engine.DEFAULT_FILTERS
-    }
-    thresholds = {k: screener_engine.parse_threshold(k, filters[k]) for k in screener_engine.DEFAULT_FILTERS}
-
-    include_no_1y_raw = session.get(
-        f"{screener_engine.SESSION_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}",
-        user_data.get(f"{screener_engine.PROFILE_PREFIX}{screener_engine.INCLUDE_NO_1Y_KEY}", screener_engine.INCLUDE_NO_1Y_DEFAULT),
-    )
-    include_no_1y = str(include_no_1y_raw) == "1"
-
-    raw_tokens = screener_engine.get_screener_data(api_key)
-    tokens = screener_engine.filter_tokens(raw_tokens, thresholds, include_no_1y)
-
-    for t in tokens:
-        t["starred"] = t.get("id", "") in watched_ids
-
-    tokens.sort(key=lambda x: x.get("vtmr_raw", 0.0), reverse=True)
-
-    return render_template(
-        "dashboard/screener.html",
-        tokens=tokens,
-        total=len(raw_tokens),
-        filters=filters,
-        include_no_1y=include_no_1y,
-    )
 
 # --- Administration --- #
 
@@ -348,37 +308,24 @@ def delete_report(filename):
 @main_bp.route("/journal")
 @login_required
 def trading_journal():
+    # Page shell only — deliberately makes zero Drive API calls. Trades are
+    # fetched client-side from tasks.journal_get_trades (GET) right after
+    # this renders, so the user sees the page immediately instead of
+    # waiting on a Drive round-trip before any HTML is returned. Stats used
+    # to be computed here too, but the frontend has always recomputed them
+    # itself from the loaded trades (see updateStats() in the template) —
+    # the server-side copy was dead weight, so it's gone.
     uid = session['user_id']
     user_keys = get_user_keys(uid)
     drive_linked = "google_refresh_token" in user_keys
-    
-    stats = {"winrate": "0%", "best_trade": "--", "bias": "Neutral"}
-    journal_history = [] 
-
-    if drive_linked:
-        try:
-            # Sync journal data from Google Drive AppData folder
-            creds = JournalEngine.get_creds(uid)
-            if creds:
-                service = JournalEngine.get_drive_service(creds)
-                file_id = JournalEngine.initialize_journal(service, uid=uid)
-                try:
-                    journal_history = JournalEngine.load_journal(service, file_id)
-                except HttpError:
-                    # Cached file_id was stale 
-                    update_user_keys(uid, {"journal_drive_file_id": firestore.DELETE_FIELD})
-                    file_id = JournalEngine.initialize_journal(service, uid=uid)
-                    journal_history = JournalEngine.load_journal(service, file_id)
-                stats = JournalEngine.calculate_stats(journal_history)
-                journal_history.reverse() 
-        except Exception as e:
-            print(f"⚠️ Journal Error: {e}")
+    journal_mode_pref = user_keys.get("journal_mode_pref", "both")
+    if journal_mode_pref not in ("normal", "meme", "both"):
+        journal_mode_pref = "both"
 
     return render_template(
-        "dashboard/trading_journal.html", 
+        "dashboard/trading_journal.html",
         drive_linked=drive_linked,
-        stats=stats,
-        trades=journal_history,
+        journal_mode_pref=journal_mode_pref,
         user_settings=user_keys
     )
 

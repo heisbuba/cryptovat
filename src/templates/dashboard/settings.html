@@ -1,14 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Settings - QuantVAT{% endblock %} 
-{% block description %}Hey fellow trader / analyst, welcome to settings page. Update your account or factory reset it.
-{% endblock %} 
-{% block og_title %}Settings - QuantVAT{% endblock %} 
-{% block og_description %}Hey fellow trader / analyst, welcome to settings page. Update your account or factory reset it.{% endblock %} 
-{% block keywords %}register, secure access, crypto dashboard, cryptovat, trading tools{% endblock %} 
 {% block extra_css %}
 <style>
 /* --- MODAL OVERLAY --- */
-
 .modal-overlay {
     display: none;
     position: fixed;
@@ -24,7 +18,6 @@
 }
 
 /* --- MODAL CONTAINER --- */
-
 .modal-box {
     background: #151a1e;
     border: 1px solid #f6465d;
@@ -50,12 +43,11 @@
 }
 
 /* --- MODAL CONTENT --- */
-
 .modal-icon {
-    font-size: 3rem;
     margin-bottom: 10px;
     display: block;
-    /* Glow effect for the icon */
+    margin-left: auto;
+    margin-right: auto;
     filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.3));
 }
 
@@ -76,7 +68,6 @@
 }
 
 /* --- MODAL ACTION BUTTONS --- */
-
 .modal-actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -120,7 +111,148 @@
     color: #fff;
     box-shadow: 0 4px 15px rgba(246, 70, 93, 0.4);
 }
-    </style>
+
+.btn-delete-disabled {
+    background: #2b3139;
+    border-color: #2b3139;
+    color: #6b7280;
+    cursor: not-allowed;
+    margin-top: 0;
+    width: 100%;
+    transition: all 0.2s;
+    box-shadow: none;
+}
+
+.btn-delete-disabled.is-enabled {
+    background: #f6465d;
+    border-color: #f6465d;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(246, 70, 93, 0.4);
+}
+
+.delete-confirm-input {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #f6465d;
+    background: #0d1117;
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.danger-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+@media (max-width: 480px) {
+    .danger-actions {
+        grid-template-columns: 1fr;
+    }
+}
+  
+.input-with-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.input-with-toggle input {
+    width: 100%;
+    padding-right: 40px;
+}
+.toggle-visibility-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    height: 16px;
+    width: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
+.toggle-visibility-btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+/* --- JOURNAL MODE --- */
+.journal-mode-switcher {
+    display: flex;
+    background: var(--bg-input, #0d1117);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border, #2b3139);
+    gap: 4px;
+}
+.journal-mode-switcher input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.journal-mode-switcher label {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #6b7280;
+    cursor: pointer;
+    transition: 0.2s;
+    margin: 0;
+}
+.journal-mode-switcher input[type="radio"]:checked + label {
+    background: var(--accent-green, #0ecb81);
+    color: #000;
+}
+
+.card-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border, #2b3139);
+}
+.card-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+.card-label {
+    display: block;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #9ca3af;
+    margin: 2px 0 8px;
+}
+
+.card-notice {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 0;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px dashed var(--border, #2b3139);
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -128,123 +260,279 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="{{ category }}-message">{{ '✅' if category == 'success' else '⚠️' }} {{ message }}</div>
+          <div class="{{ category }}-message">
+            {% if category == 'success' %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            {% else %}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            {% endif %}
+            {{ message }}
+          </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
 
     {% if success %}
-      <div class="success-message">✅ {{ success }}</div>
+      <div class="success-message">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        {{ success }}
+      </div>
     {% endif %}
-    <h1>🛠️ Settings</h1>
-    
+
+    <h1>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+      </svg>
+      Settings
+    </h1>
+
     <div class="card">
         <p style="text-align:center; color:#848e9c; font-size:0.9rem;">
             Manage your API configuration and account settings
         </p>
     </div>
 
+    <!-- API Configuration -->
     <form action="{{ url_for('main.save_config') }}" method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="source" value="settings">
         <div class="card">
             <h2 style="color: var(--accent-green);">API Configuration</h2>
             <p style="color:#848e9c; font-size:0.9rem; margin-bottom:15px;">Update your API keys anytime</p>
-            
-            <label>CoinMarketCap Key</label>
-            <input type="text" name="cmc_key" value="{{ cmc }}" required>
-          
-            <label style="margin-top:10px; display:block;">CoinGecko Key</label>
-            <input type="text" name="cg_key" value="{{ cg }}" required>
-            
-            <label style="margin-top:10px; display:block;">LiveCoinWatch Key</label>
-            <input type="text" name="lcw_key" value="{{ lcw }}" required>
-            
+
+            <label>CoinGecko Key</label>
+            <div class="input-with-toggle">
+                <input type="password" id="cgKeyInput" name="cg_key" value="{{ cg }}" required>
+                <button type="button" class="toggle-visibility-btn" onclick="toggleFieldVisibility('cgKeyInput', this)" title="Toggle Visibility">
+                    <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+            </div>
+
             <label style="margin-top:10px; display:block;">VTMR URL</label>
             <input type="text" name="vtmr_url" value="{{ vtmr }}" required>
-            
-            <button type="submit" class="btn btn-green">UPDATE SETTINGS</button>
+
+            <button type="submit" class="btn btn-green" style="margin-top: 15px;">UPDATE SETTINGS</button>
         </div>
     </form>
 
-  <form action="{{ url_for('main.save_ai_key') }}" method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="source" value="settings">
+    <!-- Unified Trading Journal Card -->
     <div class="card">
-        <h2 style="color: var(--accent-green);">AI Auditor Config</h2>
+        <h2 style="color: var(--accent-green);">Trading Journal</h2>
         <p style="color:#848e9c; font-size:0.9rem; margin-bottom:15px;">
-            Provide your <strong>Google Gemini Flash API key</strong> to enable deep, blunt and honest analysis of your selected trading journal.
+            Connect your Google Drive, select display options, and configure AI auditing.
         </p>
-        
-        <label>Gemini Api Key</label> <a href="https://aistudio.google.com/" target="_blank" class="get-key-link">Get Key ↗</a>
-        <input type="text" name="api_key" 
-               value="{{ user_settings.gemini_key if user_settings and user_settings.gemini_key else '' }}" 
-               placeholder="Optional: Paste key here..." required>
-      
-        <button type="submit" class="btn btn-green">UPDATE SETTING</button>
-        
+
+        <!-- Sub-section 1: Cloud Storage Sync -->
+        <div class="card-section">
+            <label class="card-label">CLOUD STORAGE SYNC</label>
+            {% if drive_linked %}
+                <form action="{{ url_for('tasks.google_disconnect') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-red">
+                        DISCONNECT DRIVE
+                    </button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('tasks.google_login') }}" class="btn btn-green" style="text-decoration: none; display: block; text-align: center;">
+                    CONNECT GOOGLE DRIVE
+                </a>
+            {% endif %}
+        </div>
+
+        {% if drive_linked %}
+            <!-- Sub-section 2: Journal Display Mode -->
+            <div class="card-section">
+                <label class="card-label">DISPLAY MODE</label>
+                <form id="journalModeForm" action="{{ url_for('main.save_journal_mode') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="journal-mode-switcher">
+                        <input type="radio" id="jm-normal" name="journal_mode_pref" value="normal"
+                               {% if journal_mode_pref == 'normal' %}checked{% endif %}
+                               onchange="document.getElementById('journalModeForm').submit()">
+                        <label for="jm-normal">SPOT</label>
+                        
+                        <input type="radio" id="jm-meme" name="journal_mode_pref" value="meme"
+                               {% if journal_mode_pref == 'meme' %}checked{% endif %}
+                               onchange="document.getElementById('journalModeForm').submit()">
+                        <label for="jm-meme">MEME</label>
+                        
+                        <input type="radio" id="jm-both" name="journal_mode_pref" value="both"
+                               {% if journal_mode_pref == 'both' or not journal_mode_pref %}checked{% endif %}
+                               onchange="document.getElementById('journalModeForm').submit()">
+                        <label for="jm-both">BOTH</label>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sub-section 3: AI Auditor Config -->
+            <div class="card-section">
+                <label class="card-label">AI AUDITOR CONFIG</label>
+                <p style="color:#848e9c; font-size:0.85rem; margin-bottom:12px;">
+                    Provide your <strong>Google Gemini Flash API key</strong> to enable deep, blunt, and honest analysis of your synced trading journal.
+                </p>
+                <form action="{{ url_for('main.save_ai_key') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="source" value="settings">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                     <label style="font-size:0.85rem; margin: 0;">
+                            Gemini API Key
+                        </label>
+                      <a href="https://aistudio.google.com/" target="_blank" class="get-key-link" style="font-size:0.85rem; text-decoration: none;">
+                        Get Key 
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 2px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                         </a>
+                    </div>
+                    
+                    <div class="input-with-toggle">
+                        <input type="password" id="geminiKeyInput" name="api_key" 
+                               value="{{ user_settings.gemini_key if user_settings and user_settings.gemini_key else '' }}" 
+                               placeholder="Optional: Paste key here...">
+                        <button type="button" class="toggle-visibility-btn" onclick="toggleFieldVisibility('geminiKeyInput', this)" title="Toggle Visibility">
+                            <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                    </div>
+
+                    <button type="submit" class="btn btn-green" style="margin-top:15px;">UPDATE KEY</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="card-section">
+                <p class="card-notice">
+                    <em>Connect Google Drive to configure your journal display mode and AI Auditor settings.</em>
+                </p>
+            </div>
+        {% endif %}
     </div>
-</form>
-  
-    <div class="card">
-    <h2 style="color: var(--accent-green);">Cloud Storage</h2>
-    <p style="color:#848e9c; font-size:0.9rem; margin-bottom:15px;">
-        Manage your Google Drive connection for automated Trading Journal syncing.
-    </p>
 
-    {% if drive_linked %}
-        <form action="{{ url_for('tasks.google_disconnect') }}" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-red">
-                DISCONNECT G-DRIVE AUTH
-            </button>
-        </form>
-    {% else %}
-        <a href="{{ url_for('tasks.google_login') }}" class="btn btn-green" style="text-decoration: none; display: block; text-align: center;">
-            CONNECT GOOGLE DRIVE
-        </a>
-    {% endif %}
-</div>
-
-  
+    <!-- Danger Zone -->
     <div class="card" style="border-color: var(--accent-red); background: rgba(246,70,93,0.05);">
-        <h2 style="color:var(--accent-red); margin-top:0;">⚠️ Danger Zone</h2>
-        <p style="font-size:0.85rem; color:#848e9c;">This will delete all your saved API keys and VTMR URL, returning you to the Setup Wizard.</p>
-        <button type="button" class="btn btn-red" onclick="openModal()">FACTORY RESET</button>
+        <h2 style="color:var(--accent-red); margin-top:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          Danger Zone
+        </h2>
+        <p style="font-size:0.85rem; color:#848e9c;">Reset application configuration or permanently delete your account.</p>
+        
+        <div class="danger-actions">
+            <button type="button" class="btn btn-red" onclick="openModal('resetModal')">FACTORY RESET</button>
+            <button type="button" class="btn btn-red" onclick="openModal('deleteAccountModal')">DELETE ACCOUNT</button>
+        </div>
     </div>
-
 </div>
 
+<!-- Modal 1: Factory Reset -->
 <div id="resetModal" class="modal-overlay">
     <div class="modal-box">
-        <span class="modal-icon">⚠️</span>
+        <svg class="modal-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
         <div class="modal-title">Are you absolutely sure?</div>
         <div class="modal-text">
             This action cannot be undone. All your saved API keys configuration and AI Auditor memory will be permanently deleted.
         </div>
         <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-cancel" onclick="closeModal('resetModal')">CANCEL</button>
             <form action="{{ url_for('main.factory_reset') }}" method="POST" style="margin:0; width:100%;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn-delete" style="margin-top:0; width:100%; display:flex; align-items:center; justify-content:center;">YES, DELETE IT</button>
+                <button type="submit" class="btn-delete" style="margin-top:0; width:100%; display:flex; align-items:center; justify-content:center;">YES, RESET IT</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Delete Account -->
+<div id="deleteAccountModal" class="modal-overlay">
+    <div class="modal-box">
+        <svg class="modal-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <div class="modal-title">Delete Account Entirely?</div>
+        <div class="modal-text">
+            This action cannot be undone. Type <strong>DELETE</strong> below to confirm.
+        </div>
+
+        <!-- Confirmation Input -->
+        <input 
+            type="text" 
+            id="deleteConfirmInput" 
+            placeholder="Type DELETE to confirm" 
+            oninput="validateDeleteInput()"
+            class="delete-confirm-input"
+        >
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal('deleteAccountModal')">CANCEL</button>
+            <form action="{{ url_for('main.delete_account') }}" method="POST" style="margin:0; width:100%;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button 
+                    type="submit" 
+                    id="btnDeleteAccountSubmit" 
+                    class="btn-delete btn-delete-disabled" 
+                    disabled
+                >
+                    DELETE MY ACCOUNT
+                </button>
             </form>
         </div>
     </div>
 </div>
 
 <script>
-    // Modal helper
-    function openModal() {
-        document.getElementById('resetModal').style.display = 'flex';   
+    function openModal(modalId) {
+        document.getElementById(modalId).style.display = 'flex';    
+
+        if (modalId === 'deleteAccountModal') {
+            const input = document.getElementById('deleteConfirmInput');
+            if (input) {
+                input.value = '';
+                validateDeleteInput();
+                setTimeout(() => input.focus(), 100);
+            }
+        }
     }
-    
-    function closeModal() {
-        document.getElementById('resetModal').style.display = 'none';
-    }  
-    
-    // Close if clicked outside the box
-    document.getElementById('resetModal').addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+
+        if (modalId === 'deleteAccountModal') {
+            const input = document.getElementById('deleteConfirmInput');
+            if (input) input.value = '';
+        }
+    }   
+
+    function validateDeleteInput() {
+        const inputVal = document.getElementById('deleteConfirmInput').value.trim();
+        const btn = document.getElementById('btnDeleteAccountSubmit');
+        const isValid = inputVal === 'DELETE';
+
+        btn.disabled = !isValid;
+        btn.classList.toggle('is-enabled', isValid);
+    }
+
+    function toggleFieldVisibility(inputId, buttonEl) {
+        const field = document.getElementById(inputId);
+        if (field.type === 'password') {
+            field.type = 'text';
+            buttonEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+        } else {
+            field.type = 'password';
+            buttonEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+        }
+    }
+
+    // Close when clicking overlay backdrop for all modals
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) closeModal(this.id);
+        });
     });
 </script>
 {% endblock %}

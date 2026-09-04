@@ -1,9 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Deep Diver - QuantVAT{% endblock %} 
-{% block description %}View data-driven quantitative analysis report of any crypto coin with advanced metrics. Good for quick overview of tokens data.{% endblock %} 
-{% block og_title %}Quant Diver - QuantVat{% endblock %} 
-{% block og_description %}View data-driven quantitative analysis report of any crypto coin with advanced metrics. Good for quick overview of tokens data.{% endblock %} 
-{% block keywords %}register, secure access, crypto dashboard, quantvat, trading tools, crypto quant{% endblock %} 
+{% block title %}Deep Diver - QuantVAT{% endblock %}  
 {% block extra_css %}
 <style>
     /* --- Grid Utility --- */
@@ -433,7 +429,7 @@
                 <span id="watchlist-text">Watchlist</span>
             </button>
         </div>
-          
+
         <div class="grid velocity-grid">
             <div class="card mini-stats"><small>1H CHG</small><div id="v-1h" class="mono stats-val">--</div></div>
             <div class="card mini-stats"><small>24H CHG</small><div id="v-24h" class="mono stats-val">--</div></div>
@@ -455,6 +451,9 @@
                 <div class="panel-tag" style="color: var(--accent-green);">QUANT RATIOS</div>
                 <div class="d-row" title="Volume to Market Cap"><span>VTMR</span><span class="mono" id="v-vtmr">--</span></div>
                 <div class="d-row" title="Volume to Price Change"><span>VTPC</span><span class="mono" id="v-vtpc">--</span></div>
+                 <div class="d-row" title="Aggregate DEX liquidity"><span>DEX LIQ.</span><span class="mono" id="v-liquidity">--</span></div>
+                <div class="d-row" title="Aggregated cost to move price +2% across top liquid markets"><span>DEPTH +2%</span><span class="mono" id="v-depth-up">--</span></div>
+                <div class="d-row" title="Aggregated cost to move price -2% across top liquid markets"><span>DEPTH -2%</span><span class="mono" id="v-depth-down">--</span></div>
             </div>
         </div>
       
@@ -464,13 +463,27 @@
                 <div class="d-row" title="Mean daily volume over the last 30 days"><span>30D AVG DAILY VOLUME</span><span class="mono" id="v-avg-30d-vol">--</span></div>
                 <div class="d-row" title="Volume-weighted average price over the last 30 days"><span>30D VWAP</span><span class="mono" id="v-vwap-30d">--</span></div>
             </div>
-         
+
+        <div class="card stats-panel" style="margin-top: 15px;">
+    <div class="panel-tag" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>MEAN REVERSION</span>
+        <button id="btn-calc-mr" onclick="calculateMeanReversion()" class="btn-action" style="padding: 2px 10px; font-size: 0.7rem;">
+            CALCULATE
+        </button>
+    </div>
+    
+    <div id="mr-results-container" style="display: none;">
+        <div class="d-row"><span id="v-mr-1d">--</span></div>
+        <div class="d-row"><span id="v-mr-4h">--</span></div>
+        <div class="d-row"><span id="v-mr-1h">--</span></div>
+    </div>
+</div>
         <div class="grid explainer-grid" style="margin-top: 15px;">
             <div class="card mini-stats explainer-box">
                 <p><strong>VTMR:</strong> Volume to Market Cap Ratio. Measures trading activity relative to token's current size (marketcap).</p>
             </div>
             <div class="card mini-stats explainer-box">
-                <p><strong>VTPC:</strong> Volume to Price Change. Quantifies "Price Impact." Shows how much dollar volume is needed to move the price by 1%.</p>
+                <p><strong>VTPC:</strong> Volume to Price Change. Quantifies "Price Impact." Shows how much dollar volume it cost to move the price by 1% in whatever the direction the coin is going.</p>
             </div>
             <div class="card mini-stats explainer-box">
                 <p><strong>VWAP:</strong> Volume-Weighted Average. Measures the true average price a token has traded at over a given timeframe, weighted by actual transaction volume rather than just time.</p>
@@ -537,6 +550,7 @@
         input.value = symbol.toUpperCase();
         matrix.classList.remove('visible');
         skeleton.style.display = 'block';
+        resetMeanReversionUI();
 
         try {
             const res = await fetch(`/api/dive/${encodeURIComponent(id)}`);
@@ -555,6 +569,10 @@
                 // QUANT RATIOS
                 document.getElementById('v-vtmr').innerText = d.ratios.vtmr;
                 document.getElementById('v-vtpc').innerText = d.ratios.vtpc;
+                document.getElementById('v-liquidity').innerText = d.ratios.liquidity;
+                const depth = d.depth || {};
+                document.getElementById('v-depth-up').innerText = depth.up || '--';
+                document.getElementById('v-depth-down').innerText = depth.down || '--';
 
                 const hist = d.historical || {};
                 document.getElementById('v-avg-7d-vol').innerText = hist.avg_7d_daily_vol || '--';
@@ -573,7 +591,7 @@
                     document.getElementById('link-cg').href = d.links.cg;
                     document.getElementById('link-tv').href = d.links.tv;
                 }
-                
+
                 skeleton.style.display = 'none';
                 matrix.classList.add('visible');
             } else {
@@ -669,6 +687,84 @@
         } catch (err) {
             updateWatchlistUI(isCurrentlyWatched);
             console.error("Watchlist toggle failed:", err);
+        }
+    }
+
+    // --- Mean Reversion ---
+
+    function resetMeanReversionUI() {
+        const btn = document.getElementById('btn-calc-mr');
+        const container = document.getElementById('mr-results-container');
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "CALCULATE";
+        }
+        if (container) {
+            container.style.display = 'none';
+        }
+        
+        const el1d = document.getElementById('v-mr-1d');
+        const el4h = document.getElementById('v-mr-4h');
+        const el1h = document.getElementById('v-mr-1h');
+
+        if (el1d) el1d.innerText = '--';
+        if (el4h) el4h.innerText = '--';
+        if (el1h) el1h.innerText = '--';
+    }
+
+    async function calculateMeanReversion() {
+        if (!currentCoinData || !currentCoinData.id) return;
+
+        const btn = document.getElementById('btn-calc-mr');
+        const container = document.getElementById('mr-results-container');
+
+        btn.disabled = true;
+        btn.innerText = "CALCULATING...";
+
+        try {
+            const res = await fetch('/api/mean-reversion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ coin_id: currentCoinData.id })
+            });
+
+            if (!res.ok) {
+                let errMsg = `Server error (HTTP ${res.status}) calculating mean reversion.`;
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.message || errMsg;
+                } catch (_) {
+  
+                }
+                alert("Error: " + errMsg);
+                btn.disabled = false;
+                btn.innerText = "CALCULATE";
+                return;
+            }
+
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                document.getElementById('v-mr-1d').innerText = data.line1d || '--';
+                document.getElementById('v-mr-4h').innerText = data.line4h || '--';
+                document.getElementById('v-mr-1h').innerText = data.line1h || '--';
+
+                container.style.display = 'block';
+                btn.innerText = "CALCULATED";
+            } else {
+                alert("Error: " + (data.message || "Failed to calculate mean reversion metrics"));
+                btn.disabled = false;
+                btn.innerText = "CALCULATE";
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Network error processing mean reversion calculation.");
+            btn.disabled = false;
+            btn.innerText = "CALCULATE";
         }
     }
 </script>

@@ -4,10 +4,11 @@ firebase-admin
 requests
 pandas
 aiohttp
-pypdf==6.4.0
+pymupdf
 lxml
 gunicorn
-playwright
+weasyprint
+pillow
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
